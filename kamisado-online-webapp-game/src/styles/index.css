@@ -1,0 +1,17 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  @apply bg-kamisado-lacquer text-stone-100 font-sans antialiased;
+  background-image: radial-gradient(circle at 50% -20%, rgba(255, 200, 120, 0.08), transparent 60%);
+  min-height: 100vh;
+}
+
+.font-display {
+  font-family: 'Hiragino Mincho ProN', 'Yu Mincho', 'Noto Serif JP', Georgia, serif;
+}

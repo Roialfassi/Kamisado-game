@@ -1,0 +1,6 @@
+<resources>
+    <style name="Theme.Kamisado" parent="android:Theme.Material.NoActionBar">
+        <item name="android:statusBarColor">#2B1810</item>
+        <item name="android:windowBackground">#2B1810</item>
+    </style>
+</resources>
