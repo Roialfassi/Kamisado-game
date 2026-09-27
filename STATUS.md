@@ -46,8 +46,10 @@ doesn't fully pin down) sorts by end-of-round advancement then column.
 ## Web app (`kamisado-online-webapp-game/`) - built and verified in a real browser
 
 - Vite + React + TypeScript + Tailwind, consuming `@kamisado/engine` directly.
-- 8x8 board with 180-degree perspective flip, colorblind symbol assist,
-  procedural WebAudio sound effects (no external audio assets).
+- 8x8 board with 180-degree perspective flip, colorblind symbol assist
+  (toggleable and persisted in both hotseat/AI and room play, sharing one
+  preference), procedural WebAudio sound effects (no external audio assets,
+  mute preference also persisted).
 - Local hotseat play, full match formats (Single/Standard/Long/Marathon) with
   Sumo ring UI and push highlighting, pass/deadlock banners, and the
   regroup-between-rounds flow.

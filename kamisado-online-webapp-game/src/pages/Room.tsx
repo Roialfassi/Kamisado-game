@@ -7,6 +7,7 @@ import { GameHud } from '../components/GameHud.js';
 import { MoveHistory } from '../components/MoveHistory.js';
 import { ReplayViewer } from '../components/ReplayViewer.js';
 import { copyToClipboard } from '../lib/clipboard.js';
+import { getStoredSymbolsEnabled, setStoredSymbolsEnabled } from '../lib/preferences.js';
 import { generateRoomSlug } from '../lib/roomSlug.js';
 import { useRoomConnection } from '../multiplayer/useRoomConnection.js';
 import type { PreferredSide } from '@kamisado/protocol';
@@ -81,6 +82,7 @@ function RoomArena({ roomId, playerName, preferredSide }: { roomId: string; play
   const conn = useRoomConnection(roomId, playerName, preferredSide);
   const [copied, setCopied] = useState(false);
   const [showReplay, setShowReplay] = useState(false);
+  const [symbolsEnabled, setSymbolsEnabled] = useState(getStoredSymbolsEnabled);
 
   if (conn.status === 'CLOSED') {
     return (
@@ -133,6 +135,16 @@ function RoomArena({ roomId, playerName, preferredSide }: { roomId: string; play
         >
           {copied ? 'Copied!' : 'Copy Invite Link'}
         </button>
+        <button
+          onClick={() => {
+            const next = !symbolsEnabled;
+            setStoredSymbolsEnabled(next);
+            setSymbolsEnabled(next);
+          }}
+          className="rounded bg-black/30 px-3 py-1 hover:bg-black/50"
+        >
+          Symbols: {symbolsEnabled ? 'On' : 'Off'}
+        </button>
         {yourSide !== 'SPECTATOR' && <EmoteWheel onSend={conn.sendEmote} />}
         {yourSide !== 'SPECTATOR' && (
           <button onClick={() => conn.resign(yourSide)} className="rounded bg-red-900/60 px-3 py-1 hover:bg-red-800/70">
@@ -149,7 +161,7 @@ function RoomArena({ roomId, playerName, preferredSide }: { roomId: string; play
       )}
 
       <div className="flex w-full max-w-4xl flex-col items-center gap-6 lg:flex-row lg:items-start lg:justify-center">
-        <GameHud state={gameState} blackName={blackName} goldName={goldName} symbolsEnabled={false} />
+        <GameHud state={gameState} blackName={blackName} goldName={goldName} symbolsEnabled={symbolsEnabled} />
 
         <div className="flex flex-col items-center gap-4">
           <Board
@@ -157,7 +169,7 @@ function RoomArena({ roomId, playerName, preferredSide }: { roomId: string; play
             perspective={perspective}
             selected={conn.selected}
             legalDestinations={conn.legalDestinations}
-            symbolsEnabled={false}
+            symbolsEnabled={symbolsEnabled}
             interactive={yourSide !== 'SPECTATOR' && gameState.activePlayer === yourSide}
             onSquareClick={conn.selectSquare}
           />

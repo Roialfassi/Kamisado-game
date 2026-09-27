@@ -9,12 +9,13 @@ import { ReplayViewer } from '../components/ReplayViewer.js';
 import { GameSetup, GameSetupValue } from '../components/GameSetup.js';
 import { useKamisadoGame } from '../state/useKamisadoGame.js';
 import { isMuted, setMuted } from '../lib/sound.js';
+import { getStoredSymbolsEnabled, setStoredSymbolsEnabled } from '../lib/preferences.js';
 
 export default function Play() {
   const [params] = useSearchParams();
   const mode = params.get('mode') === 'ai' ? 'ai' : 'hotseat';
   const [setup, setSetup] = useState<GameSetupValue | null>(null);
-  const [symbolsEnabled, setSymbolsEnabled] = useState(false);
+  const [symbolsEnabled, setSymbolsEnabled] = useState(getStoredSymbolsEnabled);
   const [muted, setMutedState] = useState(isMuted());
 
   if (!setup) {
@@ -32,7 +33,11 @@ export default function Play() {
     <GameScreen
       setup={setup}
       symbolsEnabled={symbolsEnabled}
-      onToggleSymbols={() => setSymbolsEnabled((v) => !v)}
+      onToggleSymbols={() => {
+        const next = !symbolsEnabled;
+        setStoredSymbolsEnabled(next);
+        setSymbolsEnabled(next);
+      }}
       muted={muted}
       onToggleMuted={() => {
         const next = !muted;

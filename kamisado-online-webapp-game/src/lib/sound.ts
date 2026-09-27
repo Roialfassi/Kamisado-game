@@ -1,10 +1,12 @@
+import { getStoredMuted, setStoredMuted } from './preferences.js';
+
 /**
  * Tiny procedural sound effects via WebAudio - no external audio assets to
  * fetch or license. Each effect is a short synthesized click/thud/chime.
  */
 
 let ctx: AudioContext | null = null;
-let muted = false;
+let muted = getStoredMuted();
 
 function getCtx(): AudioContext | null {
   if (typeof window === 'undefined') return null;
@@ -18,6 +20,7 @@ function getCtx(): AudioContext | null {
 
 export function setMuted(value: boolean): void {
   muted = value;
+  setStoredMuted(value);
 }
 
 export function isMuted(): boolean {
