@@ -8,13 +8,21 @@ package com.kamisado.engine
  * degree rotational symmetry (verified programmatically in that port).
  */
 val BOARD_LAYOUT: List<List<Color>> = listOf(
+    // Rank 1 (Row 0 - Black Home Row):
     listOf(Color.BROWN, Color.GREEN, Color.RED, Color.YELLOW, Color.PINK, Color.PURPLE, Color.BLUE, Color.ORANGE),
-    listOf(Color.GREEN, Color.RED, Color.YELLOW, Color.BROWN, Color.ORANGE, Color.PINK, Color.PURPLE, Color.BLUE),
-    listOf(Color.RED, Color.YELLOW, Color.BROWN, Color.GREEN, Color.BLUE, Color.ORANGE, Color.PINK, Color.PURPLE),
-    listOf(Color.YELLOW, Color.BROWN, Color.GREEN, Color.RED, Color.PURPLE, Color.BLUE, Color.ORANGE, Color.PINK),
-    listOf(Color.PINK, Color.ORANGE, Color.BLUE, Color.PURPLE, Color.RED, Color.GREEN, Color.BROWN, Color.YELLOW),
-    listOf(Color.PURPLE, Color.PINK, Color.ORANGE, Color.BLUE, Color.GREEN, Color.BROWN, Color.YELLOW, Color.RED),
-    listOf(Color.BLUE, Color.PURPLE, Color.PINK, Color.ORANGE, Color.BROWN, Color.YELLOW, Color.RED, Color.GREEN),
+    // Rank 2 (Row 1):
+    listOf(Color.PURPLE, Color.BROWN, Color.YELLOW, Color.BLUE, Color.GREEN, Color.PINK, Color.ORANGE, Color.RED),
+    // Rank 3 (Row 2):
+    listOf(Color.BLUE, Color.YELLOW, Color.BROWN, Color.PURPLE, Color.RED, Color.ORANGE, Color.PINK, Color.GREEN),
+    // Rank 4 (Row 3):
+    listOf(Color.YELLOW, Color.RED, Color.GREEN, Color.BROWN, Color.ORANGE, Color.BLUE, Color.PURPLE, Color.PINK),
+    // Rank 5 (Row 4):
+    listOf(Color.PINK, Color.PURPLE, Color.BLUE, Color.ORANGE, Color.BROWN, Color.GREEN, Color.RED, Color.YELLOW),
+    // Rank 6 (Row 5):
+    listOf(Color.GREEN, Color.PINK, Color.ORANGE, Color.RED, Color.PURPLE, Color.BROWN, Color.YELLOW, Color.BLUE),
+    // Rank 7 (Row 6):
+    listOf(Color.RED, Color.ORANGE, Color.PINK, Color.GREEN, Color.BLUE, Color.YELLOW, Color.BROWN, Color.PURPLE),
+    // Rank 8 (Row 7 - Gold Home Row):
     listOf(Color.ORANGE, Color.BLUE, Color.PURPLE, Color.PINK, Color.YELLOW, Color.RED, Color.GREEN, Color.BROWN),
 )
 

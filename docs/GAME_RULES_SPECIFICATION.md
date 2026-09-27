@@ -29,12 +29,12 @@ The standard Latin square board satisfies $180^\circ$ rotational symmetry. For a
 ```
 Ranks:
 8 (Row 7) [ ORANGE,   BLUE, PURPLE,   PINK, YELLOW,    RED,  GREEN,  BROWN ] (Gold Home Row)
-7 (Row 6) [    RED, ORANGE,  BROWN,  GREEN,   BLUE, PURPLE,   PINK, YELLOW ]
+7 (Row 6) [    RED, ORANGE,   PINK,  GREEN,   BLUE, YELLOW,  BROWN, PURPLE ]
 6 (Row 5) [  GREEN,   PINK, ORANGE,    RED, PURPLE,  BROWN, YELLOW,   BLUE ]
 5 (Row 4) [   PINK, PURPLE,   BLUE, ORANGE,  BROWN,  GREEN,    RED, YELLOW ]
 4 (Row 3) [ YELLOW,    RED,  GREEN,  BROWN, ORANGE,   BLUE, PURPLE,   PINK ]
 3 (Row 2) [   BLUE, YELLOW,  BROWN, PURPLE,    RED, ORANGE,   PINK,  GREEN ]
-2 (Row 1) [ YELLOW,   PINK, PURPLE,   BLUE,  GREEN,  BROWN, ORANGE,    RED ]
+2 (Row 1) [ PURPLE,  BROWN, YELLOW,   BLUE,  GREEN,   PINK, ORANGE,    RED ]
 1 (Row 0) [  BROWN,  GREEN,    RED, YELLOW,   PINK, PURPLE,   BLUE, ORANGE ] (Black Home Row)
              File a  File b  File c  File d  File e  File f  File g  File h
 ```

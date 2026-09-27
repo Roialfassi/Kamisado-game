@@ -1,5 +1,5 @@
 import { GameState, GameStatus, MATCH_FORMAT_POINTS, PlayerSide } from '@kamisado/engine';
-import { COLOR_HEX, COLOR_LABEL, COLOR_SYMBOL } from '../lib/theme.js';
+import { COLOR_HEX, COLOR_LABEL, COLOR_SYMBOL, COLOR_KANJI, getContrastTextColor } from '../lib/theme.js';
 
 export interface GameHudProps {
   state: GameState;
@@ -58,10 +58,14 @@ export function GameHud({ state, blackName, goldName, symbolsEnabled, showClock 
             <div className="flex items-center justify-center gap-2">
               <span className="text-xs uppercase tracking-wide text-white/60">Must move</span>
               <span
-                className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-bold"
-                style={{ backgroundColor: COLOR_HEX[required], color: '#12100a' }}
+                className="inline-flex items-center gap-1.5 rounded px-2.5 py-1 text-xs font-bold shadow-sm"
+                style={{
+                  backgroundColor: COLOR_HEX[required],
+                  color: getContrastTextColor(required),
+                }}
               >
-                {symbolsEnabled && COLOR_SYMBOL[required]} {COLOR_LABEL[required]}
+                <span className="font-serif font-black">{COLOR_KANJI[required]}</span>
+                <span>{COLOR_LABEL[required]}</span>
               </span>
             </div>
           ) : (

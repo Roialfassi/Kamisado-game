@@ -1,26 +1,38 @@
 import { Color } from '@kamisado/engine';
 
 export const COLOR_HEX: Record<Color, string> = {
-  [Color.BROWN]: '#5D4037',
-  [Color.GREEN]: '#2E7D32',
-  [Color.RED]: '#C62828',
-  [Color.YELLOW]: '#FBC02D',
-  [Color.PINK]: '#EC407A',
-  [Color.PURPLE]: '#7B1FA2',
-  [Color.BLUE]: '#1565C0',
-  [Color.ORANGE]: '#EF6C00',
+  [Color.BROWN]: '#572600',
+  [Color.GREEN]: '#009157',
+  [Color.RED]: '#d23339',
+  [Color.YELLOW]: '#e3c301',
+  [Color.PINK]: '#d2719e',
+  [Color.PURPLE]: '#6f3787',
+  [Color.BLUE]: '#006bab',
+  [Color.ORANGE]: '#d77522',
 };
 
-/** Colorblind-assist glyphs, one distinct symbol per color (accessibility mode). */
+/** Authentic Japanese / Chinese Kanji characters used in official Kamisado */
+export const COLOR_KANJI: Record<Color, string> = {
+  [Color.BROWN]: '褐',
+  [Color.GREEN]: '綠',
+  [Color.RED]: '紅',
+  [Color.YELLOW]: '黃',
+  [Color.PINK]: '桃',
+  [Color.PURPLE]: '紫',
+  [Color.BLUE]: '藍',
+  [Color.ORANGE]: '橙',
+};
+
+/** High-contrast accessibility glyphs / colorblind assistance symbols */
 export const COLOR_SYMBOL: Record<Color, string> = {
-  [Color.BROWN]: '⛰', // mountain
-  [Color.GREEN]: '☘', // clover / wood
-  [Color.RED]: '▲', // fire (triangle)
-  [Color.YELLOW]: '☀', // sun
-  [Color.PINK]: '❀', // blossom
-  [Color.PURPLE]: '◆', // shadow diamond
-  [Color.BLUE]: '≈', // water
-  [Color.ORANGE]: '✱', // dragon burst
+  [Color.BROWN]: '褐', // Authentic Kanji
+  [Color.GREEN]: '綠',
+  [Color.RED]: '紅',
+  [Color.YELLOW]: '黃',
+  [Color.PINK]: '桃',
+  [Color.PURPLE]: '紫',
+  [Color.BLUE]: '藍',
+  [Color.ORANGE]: '橙',
 };
 
 export const COLOR_LABEL: Record<Color, string> = {
@@ -34,7 +46,18 @@ export const COLOR_LABEL: Record<Color, string> = {
   [Color.ORANGE]: 'Orange',
 };
 
-/** Whether a color should render with light or dark text/symbol on top for contrast. */
+/** Whether a color tile has dark tone and needs light/gold text for contrast */
 export function isDarkSquare(color: Color): boolean {
-  return color === Color.BROWN || color === Color.PURPLE || color === Color.BLUE || color === Color.GREEN;
+  return (
+    color === Color.BROWN ||
+    color === Color.PURPLE ||
+    color === Color.BLUE ||
+    color === Color.GREEN ||
+    color === Color.RED
+  );
+}
+
+/** Contrast text color for foreground indicators on this color */
+export function getContrastTextColor(color: Color): string {
+  return isDarkSquare(color) ? '#fbf4e2' : '#221208';
 }

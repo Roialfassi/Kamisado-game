@@ -43,11 +43,13 @@ export function stymieScenario() {
 /** Lesson 4: Deadlock - two towers permanently blocking each other. */
 export function deadlockScenario() {
   let state = createGame(MatchFormat.SINGLE_ROUND);
-  state = place(state, PlayerSide.GOLD, Color.BLUE, 1, 4); // sits on an ORANGE square
-  state = place(state, PlayerSide.BLACK, Color.ORANGE, 2, 4); // sits on a BLUE square
-  state = place(state, PlayerSide.GOLD, Color.GREEN, 3, 3);
-  state = place(state, PlayerSide.GOLD, Color.RED, 3, 4);
-  state = place(state, PlayerSide.GOLD, Color.YELLOW, 3, 5);
+  state = place(state, PlayerSide.GOLD, Color.BLUE, 3, 4); // sits on an ORANGE square
+  state = place(state, PlayerSide.BLACK, Color.ORANGE, 2, 0); // sits on a BLUE square
+  state = place(state, PlayerSide.GOLD, Color.GREEN, 2, 3);
+  state = place(state, PlayerSide.GOLD, Color.RED, 2, 4);
+  state = place(state, PlayerSide.GOLD, Color.YELLOW, 2, 5);
+  state = place(state, PlayerSide.BLACK, Color.PINK, 3, 0);
+  state = place(state, PlayerSide.BLACK, Color.PURPLE, 3, 1);
   state = patch(state, { activePlayer: PlayerSide.GOLD, requiredColor: Color.BLUE, lastPhysicalMover: PlayerSide.BLACK });
   return { state };
 }

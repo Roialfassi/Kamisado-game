@@ -220,19 +220,22 @@ describe('Suite 3: Stymie (Pass) & Deadlock Adjudication', () => {
 
   it('Test 12: two-tower deadlock causes last mover loss', () => {
     let state = fresh();
-    // Gold's Blue tower sits on an Orange square; Black's Orange tower sits
-    // on a Blue square (verified via colorAt, not assumed by hand).
-    expect(colorAt(BOARD_LAYOUT, 1, 4)).toBe(Color.ORANGE);
-    expect(colorAt(BOARD_LAYOUT, 2, 4)).toBe(Color.BLUE);
+    // Gold's Blue tower sits on an Orange square (3,4); Black's Orange tower sits
+    // on a Blue square (2,0) (verified via colorAt).
+    expect(colorAt(BOARD_LAYOUT, 3, 4)).toBe(Color.ORANGE);
+    expect(colorAt(BOARD_LAYOUT, 2, 0)).toBe(Color.BLUE);
 
-    state = place(state, PlayerSide.GOLD, Color.BLUE, 1, 4);
-    state = place(state, PlayerSide.BLACK, Color.ORANGE, 2, 4);
-    // Gold's Blue tower's forward cells (0,3),(0,4),(0,5) are already
-    // occupied by Black's untouched default home-row towers.
-    // Black's Orange tower needs explicit blockers on (3,3),(3,4),(3,5).
-    state = place(state, PlayerSide.GOLD, Color.GREEN, 3, 3);
-    state = place(state, PlayerSide.GOLD, Color.RED, 3, 4);
-    state = place(state, PlayerSide.GOLD, Color.YELLOW, 3, 5);
+    state = place(state, PlayerSide.GOLD, Color.BLUE, 3, 4);
+    state = place(state, PlayerSide.BLACK, Color.ORANGE, 2, 0);
+
+    // Block Gold's Blue tower at (3,4): forward cells are (2,3), (2,4), (2,5)
+    state = place(state, PlayerSide.GOLD, Color.GREEN, 2, 3);
+    state = place(state, PlayerSide.GOLD, Color.RED, 2, 4);
+    state = place(state, PlayerSide.GOLD, Color.YELLOW, 2, 5);
+
+    // Block Black's Orange tower at (2,0): forward cells are (3,0), (3,1)
+    state = place(state, PlayerSide.BLACK, Color.PINK, 3, 0);
+    state = place(state, PlayerSide.BLACK, Color.PURPLE, 3, 1);
 
     state = patch(state, { activePlayer: PlayerSide.GOLD, requiredColor: Color.BLUE, lastPhysicalMover: PlayerSide.BLACK });
     const result = handlePassOrDeadlock(state);
@@ -243,28 +246,31 @@ describe('Suite 3: Stymie (Pass) & Deadlock Adjudication', () => {
 
   it('Test 13: multi-tower circular deadlock', () => {
     let state = fresh();
-    // Chain: (BLACK,BROWN)@(1,0) -> pass -> (GOLD,GREEN)@(1,7) [forced, since
-    // colorAt(1,0)=GREEN] -> pass -> (BLACK,BLUE)@(6,7) [forced, since
-    // colorAt(1,7)=BLUE] -> pass -> back to (GOLD,GREEN) [colorAt(6,7)=GREEN],
+    // Chain: (BLACK,BROWN)@(1,0) -> pass -> (GOLD,PURPLE)@(6,4) [forced, since
+    // colorAt(1,0)=PURPLE] -> pass -> (BLACK,BLUE)@(2,3) [forced, since
+    // colorAt(6,4)=BLUE] -> pass -> back to (GOLD,PURPLE) [colorAt(2,3)=PURPLE],
     // repeating an already-seen impasse.
-    expect(colorAt(BOARD_LAYOUT, 1, 0)).toBe(Color.GREEN);
-    expect(colorAt(BOARD_LAYOUT, 1, 7)).toBe(Color.BLUE);
-    expect(colorAt(BOARD_LAYOUT, 6, 7)).toBe(Color.GREEN);
+    expect(colorAt(BOARD_LAYOUT, 1, 0)).toBe(Color.PURPLE);
+    expect(colorAt(BOARD_LAYOUT, 6, 4)).toBe(Color.BLUE);
+    expect(colorAt(BOARD_LAYOUT, 2, 3)).toBe(Color.PURPLE);
 
     state = place(state, PlayerSide.BLACK, Color.BROWN, 1, 0);
-    state = place(state, PlayerSide.GOLD, Color.GREEN, 1, 7);
-    state = place(state, PlayerSide.BLACK, Color.BLUE, 6, 7);
+    state = place(state, PlayerSide.GOLD, Color.PURPLE, 6, 4);
+    state = place(state, PlayerSide.BLACK, Color.BLUE, 2, 3);
+
     // Block BLACK_BROWN@(1,0): forward cells (2,0),(2,1).
     state = place(state, PlayerSide.GOLD, Color.ORANGE, 2, 0);
-    state = place(state, PlayerSide.GOLD, Color.PURPLE, 2, 1);
-    // GOLD_GREEN@(1,7)'s forward cells are (0,7) [still default BLACK_ORANGE]
-    // and (0,6) - but BLACK_BLUE, which defaulted to (0,6), has just been
-    // moved away to be the third mover, so it needs a replacement blocker.
-    state = place(state, PlayerSide.BLACK, Color.PINK, 0, 6);
-    // BLACK_BLUE@(6,7)'s forward cells are (7,7) [still default GOLD_BROWN]
-    // and (7,6) - but GOLD_GREEN, which defaulted to (7,6), has just been
-    // moved away to be the second mover, so it needs a replacement blocker.
-    state = place(state, PlayerSide.BLACK, Color.YELLOW, 7, 6);
+    state = place(state, PlayerSide.GOLD, Color.YELLOW, 2, 1);
+
+    // Block GOLD_PURPLE@(6,4): forward cells (5,3),(5,4),(5,5).
+    state = place(state, PlayerSide.BLACK, Color.GREEN, 5, 3);
+    state = place(state, PlayerSide.BLACK, Color.RED, 5, 4);
+    state = place(state, PlayerSide.BLACK, Color.PINK, 5, 5);
+
+    // Block BLACK_BLUE@(2,3): forward cells (3,2),(3,3),(3,4).
+    state = place(state, PlayerSide.GOLD, Color.PINK, 3, 2);
+    state = place(state, PlayerSide.GOLD, Color.BROWN, 3, 3);
+    state = place(state, PlayerSide.GOLD, Color.RED, 3, 4);
 
     state = patch(state, { activePlayer: PlayerSide.BLACK, requiredColor: Color.BROWN, lastPhysicalMover: PlayerSide.GOLD });
     const result = handlePassOrDeadlock(state);
