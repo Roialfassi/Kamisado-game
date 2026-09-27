@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { PlayerSide } from '@kamisado/engine';
 import { Board } from '../components/Board.js';
+import { EmoteToast, EmoteWheel } from '../components/EmoteWheel.js';
 import { GameHud } from '../components/GameHud.js';
 import { MoveHistory } from '../components/MoveHistory.js';
 import { ReplayViewer } from '../components/ReplayViewer.js';
@@ -108,6 +109,13 @@ function RoomArena({ roomId, playerName, preferredSide }: { roomId: string; play
         ? goldName
         : null;
 
+  const emoteSenderLabel = (() => {
+    if (!conn.lastEmote) return '';
+    if (conn.lastEmote.playerSide === PlayerSide.BLACK) return blackName;
+    if (conn.lastEmote.playerSide === PlayerSide.GOLD) return goldName;
+    return 'A spectator';
+  })();
+
   return (
     <div className="flex flex-col items-center gap-6 px-4 py-6">
       <div className="flex w-full max-w-4xl flex-wrap items-center justify-between gap-2 text-sm text-white/60">
@@ -125,12 +133,14 @@ function RoomArena({ roomId, playerName, preferredSide }: { roomId: string; play
         >
           {copied ? 'Copied!' : 'Copy Invite Link'}
         </button>
+        {yourSide !== 'SPECTATOR' && <EmoteWheel onSend={conn.sendEmote} />}
         {yourSide !== 'SPECTATOR' && (
           <button onClick={() => conn.resign(yourSide)} className="rounded bg-red-900/60 px-3 py-1 hover:bg-red-800/70">
             Resign
           </button>
         )}
       </div>
+      <EmoteToast emote={conn.lastEmote} senderLabel={emoteSenderLabel} />
 
       {disconnectedName && (
         <div className="w-full max-w-4xl rounded-md bg-amber-900/30 px-4 py-2 text-center text-sm text-amber-200">

@@ -58,7 +58,8 @@ doesn't fully pin down) sorts by end-of-round advancement then column.
 - Real-time multiplayer: a WebSocket room server (`packages/room-server/`,
   reusing the same engine) implementing the `JOIN_ROOM` / `SUBMIT_MOVE` /
   `RESIGN` / `SEND_EMOTE` protocol from `docs/DATA_MODELS_AND_PROTOCOL_SPEC.md`,
-  plus room creation, shareable links, spectators, resignation, and a 60s
+  plus room creation, shareable links, spectators, resignation, a civil
+  4-emote reaction wheel with a toast for the incoming side, and a 60s
   disconnect-grace period (reconnecting with the same browser cancels the
   forfeiture countdown; failing to reconnect in time forfeits the round).
 - Real time controls (Blitz 1+2 / Rapid 5+5 / Classical 15+0, or untimed),

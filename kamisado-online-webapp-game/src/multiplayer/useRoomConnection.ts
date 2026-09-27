@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Coordinate, GameState, Move, PlayerSide, findTowerAt, getLegalMoves } from '@kamisado/engine';
-import type { ClientMessage, EmoteId, PreferredSide, RoomStateMessage, RoundFinishedMessage, ServerMessage } from '@kamisado/protocol';
+import type { ClientMessage, EmoteBroadcastMessage, EmoteId, PreferredSide, RoomStateMessage, RoundFinishedMessage, ServerMessage } from '@kamisado/protocol';
 import { formatMove } from '../lib/notation.js';
 import type { HistoryEntry } from '../state/useKamisadoGame.js';
 
@@ -31,6 +31,7 @@ export function useRoomConnection(roomId: string, playerName: string, preferredS
   const [selected, setSelected] = useState<Coordinate | null>(null);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [roundStartState, setRoundStartState] = useState<GameState | null>(null);
+  const [lastEmote, setLastEmote] = useState<(EmoteBroadcastMessage & { key: number }) | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const playerId = useRef(getOrCreatePlayerId()).current;
   const moveCounter = useRef(1);
@@ -75,6 +76,8 @@ export function useRoomConnection(roomId: string, playerName: string, preferredS
       } else if (msg.type === 'ROUND_FINISHED') {
         setLastFinished(msg);
         setRoomState((prev) => (prev ? { ...prev, gameState: msg.gameState } : prev));
+      } else if (msg.type === 'EMOTE_BROADCAST') {
+        setLastEmote({ ...msg, key: Date.now() });
       } else if (msg.type === 'ERROR') {
         setLastError(msg.message);
       }
@@ -136,6 +139,7 @@ export function useRoomConnection(roomId: string, playerName: string, preferredS
     roomState,
     lastFinished,
     lastError,
+    lastEmote,
     selected,
     legalDestinations,
     history,
