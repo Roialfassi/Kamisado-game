@@ -5,6 +5,7 @@ const ACTIONS = [
   { to: '/play?mode=ai', title: 'Practice with the Dojo', desc: 'Face an Apprentice, Ronin, or Dragon Master bot.' },
   { to: '/room', title: 'Create Private Room', desc: 'Get a shareable link and duel a friend online in real time.' },
   { to: '/academy', title: 'The Academy', desc: 'Learn the Dragon\'s Step, the Color Lock, Stymie, Deadlocks, and Sumo.' },
+  { to: '/puzzle', title: 'Daily Puzzle', desc: 'A short mate-in-X tactic, backed by the real engine. Keep your streak alive.' },
 ];
 
 export default function Home() {

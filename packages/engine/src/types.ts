@@ -108,7 +108,7 @@ export interface GameState {
 
   /** Populated only once status becomes ROUND_OVER or MATCH_OVER. */
   roundWinner?: PlayerSide;
-  roundOverReason?: 'BASELINE_REACHED' | 'DEADLOCK' | 'RESIGN';
+  roundOverReason?: 'BASELINE_REACHED' | 'DEADLOCK' | 'RESIGN' | 'TIMEOUT';
   matchWinner?: PlayerSide;
 }
 

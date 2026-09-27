@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { MatchFormat } from '@kamisado/engine';
 import { BotTier, BOT_LABELS } from '../ai/bot.js';
+import { TIME_CONTROLS, TimeControlChoice } from '../lib/timeControl.js';
 import { Controller } from '../state/useKamisadoGame.js';
 
 export interface GameSetupValue {
   format: MatchFormat;
   black: Controller;
   gold: Controller;
+  timeControl: TimeControlChoice;
 }
 
 const FORMAT_LABELS: Record<MatchFormat, string> = {
@@ -22,15 +24,17 @@ export function GameSetup({ mode, onStart }: { mode: 'hotseat' | 'ai'; onStart: 
   const [format, setFormat] = useState<MatchFormat>(MatchFormat.STANDARD);
   const [botTier, setBotTier] = useState<BotTier>('RONIN');
   const [botSide, setBotSide] = useState<'BLACK' | 'GOLD'>('GOLD');
+  const [timeControl, setTimeControl] = useState<TimeControlChoice>(null);
 
   const start = () => {
     if (mode === 'hotseat') {
-      onStart({ format, black: 'HUMAN', gold: 'HUMAN' });
+      onStart({ format, black: 'HUMAN', gold: 'HUMAN', timeControl });
     } else {
       onStart({
         format,
         black: botSide === 'BLACK' ? botTier : 'HUMAN',
         gold: botSide === 'GOLD' ? botTier : 'HUMAN',
+        timeControl,
       });
     }
   };
@@ -50,6 +54,27 @@ export function GameSetup({ mode, onStart }: { mode: 'hotseat' | 'ai'; onStart: 
             </option>
           ))}
         </select>
+      </div>
+
+      <div>
+        <label className="mb-1 block text-xs uppercase tracking-wide text-white/60">Time Control</label>
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            onClick={() => setTimeControl(null)}
+            className={`rounded px-2 py-2 text-sm font-semibold ${timeControl === null ? 'bg-amber-600' : 'bg-black/40 hover:bg-black/60'}`}
+          >
+            Untimed
+          </button>
+          {TIME_CONTROLS.map((tc) => (
+            <button
+              key={tc.id}
+              onClick={() => setTimeControl(tc)}
+              className={`rounded px-2 py-2 text-sm font-semibold ${timeControl?.id === tc.id ? 'bg-amber-600' : 'bg-black/40 hover:bg-black/60'}`}
+            >
+              {tc.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {mode === 'ai' && (

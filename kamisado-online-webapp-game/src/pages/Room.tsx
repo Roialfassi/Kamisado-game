@@ -98,6 +98,13 @@ function RoomArena({ roomId, playerName, preferredSide }: { roomId: string; play
   const perspective = yourSide === PlayerSide.GOLD ? PlayerSide.GOLD : PlayerSide.BLACK;
   const shareUrl = typeof window !== 'undefined' ? window.location.href : '';
 
+  const disconnectedName =
+    gameState.status === 'IN_PROGRESS' && blackPlayer && !blackPlayer.connected
+      ? blackName
+      : gameState.status === 'IN_PROGRESS' && goldPlayer && !goldPlayer.connected
+        ? goldName
+        : null;
+
   return (
     <div className="flex flex-col items-center gap-6 px-4 py-6">
       <div className="flex w-full max-w-4xl flex-wrap items-center justify-between gap-2 text-sm text-white/60">
@@ -120,6 +127,12 @@ function RoomArena({ roomId, playerName, preferredSide }: { roomId: string; play
           </button>
         )}
       </div>
+
+      {disconnectedName && (
+        <div className="w-full max-w-4xl rounded-md bg-amber-900/30 px-4 py-2 text-center text-sm text-amber-200">
+          {disconnectedName} disconnected - waiting up to 60s for them to reconnect before the round is forfeited.
+        </div>
+      )}
 
       <div className="flex w-full max-w-4xl flex-col items-center gap-6 lg:flex-row lg:items-start lg:justify-center">
         <GameHud state={gameState} blackName={blackName} goldName={goldName} symbolsEnabled={false} />

@@ -8,15 +8,19 @@ import {
   Move,
   MoveType,
   PlayerSide,
+  applyClockIncrement,
   applyMove,
+  checkTimeout,
   createGame,
   findTowerAt,
   getLegalMoves,
   handlePassOrDeadlock,
   regroupForNextRound,
+  tickClock,
 } from '@kamisado/engine';
 import { BotTier, chooseBotMove } from '../ai/bot.js';
 import { formatMove } from '../lib/notation.js';
+import { TimeControlChoice } from '../lib/timeControl.js';
 import { playPass, playPlace, playSumoPush, playVictory } from '../lib/sound.js';
 
 export type Controller = 'HUMAN' | BotTier;
@@ -30,7 +34,7 @@ export interface UseKamisadoGameOptions {
   format: MatchFormat;
   black: Controller;
   gold: Controller;
-  initialClockMs?: number;
+  timeControl?: TimeControlChoice;
 }
 
 export interface KamisadoGameApi {
@@ -51,19 +55,27 @@ function controllerFor(state: GameState, options: UseKamisadoGameOptions): Contr
 }
 
 export function useKamisadoGame(options: UseKamisadoGameOptions): KamisadoGameApi {
-  const [state, setState] = useState<GameState>(() => createGame(options.format, options.initialClockMs ?? 0));
+  const [state, setState] = useState<GameState>(() => createGame(options.format, options.timeControl?.initialMs ?? 0));
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [selected, setSelected] = useState<Coordinate | null>(null);
   const [lastEvent, setLastEvent] = useState<KamisadoGameApi['lastEvent']>(null);
   const moveCounter = useRef(1);
 
   const restart = useCallback(() => {
-    setState(createGame(options.format, options.initialClockMs ?? 0));
+    setState(createGame(options.format, options.timeControl?.initialMs ?? 0));
     setHistory([]);
     setSelected(null);
     setLastEvent(null);
     moveCounter.current = 1;
-  }, [options.format, options.initialClockMs]);
+  }, [options.format, options.timeControl]);
+
+  const applyTimeout = useCallback((timedOut: NonNullable<ReturnType<typeof checkTimeout>>) => {
+    if (!timedOut.state) return false;
+    setState(timedOut.state);
+    setLastEvent('ROUND_OVER');
+    playVictory();
+    return true;
+  }, []);
 
   const commitMove = useCallback(
     (move: Move) => {
@@ -73,11 +85,23 @@ export function useKamisadoGame(options: UseKamisadoGameOptions): KamisadoGameAp
       // inside a setState(prev => ...) updater is unsafe - React 18
       // StrictMode invokes updaters twice in development to check purity,
       // which previously double-recorded every move.
-      const before = state;
+      let before = state;
+      if (options.timeControl) {
+        const timedOut = checkTimeout(before, Date.now());
+        if (timedOut) {
+          applyTimeout(timedOut);
+          return;
+        }
+        before = tickClock(before, Date.now());
+      }
+
       const applied = applyMove(before, move);
       if (!applied.success || !applied.state) return;
 
       let next = applied.state;
+      if (options.timeControl && options.timeControl.incrementMs > 0 && next.status === GameStatus.IN_PROGRESS) {
+        next = applyClockIncrement(next, move.playerSide, options.timeControl.incrementMs);
+      }
       const entries: HistoryEntry[] = [{ move, notation: formatMove(moveCounter.current++, move, next.requiredColor) }];
 
       if (move.type === MoveType.SUMO_PUSH) playSumoPush();
@@ -104,7 +128,7 @@ export function useKamisadoGame(options: UseKamisadoGameOptions): KamisadoGameAp
       setState(next);
       setSelected(null);
     },
-    [state],
+    [state, options.timeControl, applyTimeout],
   );
 
   const legalDestinations = useMemo<Move[]>(() => {
@@ -165,6 +189,21 @@ export function useKamisadoGame(options: UseKamisadoGameOptions): KamisadoGameAp
     }, 450);
     return () => window.clearTimeout(timer);
   }, [state, options, commitMove]);
+
+  // Live clock: ticks the display every 500ms and independently detects a
+  // timeout even if the flagged player never submits another move.
+  useEffect(() => {
+    if (!options.timeControl || state.status !== GameStatus.IN_PROGRESS) return;
+    const interval = window.setInterval(() => {
+      const timedOut = checkTimeout(state, Date.now());
+      if (timedOut) {
+        applyTimeout(timedOut);
+        return;
+      }
+      setState(tickClock(state, Date.now()));
+    }, 500);
+    return () => window.clearInterval(interval);
+  }, [state, options.timeControl, applyTimeout]);
 
   const isHumanTurn = state.status === GameStatus.IN_PROGRESS && controllerFor(state, options) === 'HUMAN';
 

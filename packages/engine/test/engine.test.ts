@@ -10,12 +10,15 @@ import {
   PlayerSide,
   SumoRank,
   Tower,
+  applyClockIncrement,
   applyMove,
+  checkTimeout,
   colorAt,
   createGame,
   findTower,
   getLegalMoves,
   handlePassOrDeadlock,
+  tickClock,
   towerId,
 } from '../src/index.js';
 
@@ -420,5 +423,48 @@ describe('Suite 5: Sumo Mechanics & Sumo Pushing', () => {
     const passAttempt = applyMove(state, passMove(PlayerSide.BLACK, Color.BROWN, [3, 3]));
     expect(passAttempt.success).toBe(false);
     expect(passAttempt.errorCode).toBe('MANDATORY_PUSH');
+  });
+});
+
+describe('Clock handling (beyond the 25 mandatory cases: tickClock/checkTimeout/applyClockIncrement)', () => {
+  it('tickClock deducts elapsed time from the active player only', () => {
+    let state = fresh();
+    state = patch(state, { clocks: { BLACK: 60_000, GOLD: 60_000 }, lastClockUpdate: 1_000, activePlayer: PlayerSide.BLACK });
+    const ticked = tickClock(state, 1_000 + 12_345);
+    expect(ticked.clocks[PlayerSide.BLACK]).toBe(60_000 - 12_345);
+    expect(ticked.clocks[PlayerSide.GOLD]).toBe(60_000);
+    expect(ticked.lastClockUpdate).toBe(1_000 + 12_345);
+  });
+
+  it('tickClock never lets a clock go negative', () => {
+    let state = fresh();
+    state = patch(state, { clocks: { BLACK: 500, GOLD: 60_000 }, lastClockUpdate: 0, activePlayer: PlayerSide.BLACK });
+    const ticked = tickClock(state, 10_000);
+    expect(ticked.clocks[PlayerSide.BLACK]).toBe(0);
+  });
+
+  it('checkTimeout returns null while time remains', () => {
+    let state = fresh();
+    state = patch(state, { clocks: { BLACK: 60_000, GOLD: 60_000 }, lastClockUpdate: 0 });
+    expect(checkTimeout(state, 30_000)).toBeNull();
+  });
+
+  it('checkTimeout ends the round for the opponent once the active player flags', () => {
+    let state = fresh();
+    state = patch(state, { clocks: { BLACK: 1_000, GOLD: 60_000 }, lastClockUpdate: 0, activePlayer: PlayerSide.BLACK });
+    const result = checkTimeout(state, 5_000);
+    expect(result).not.toBeNull();
+    expect(result!.isRoundOver).toBe(true);
+    expect(result!.roundWinner).toBe(PlayerSide.GOLD);
+    expect(result!.state!.roundOverReason).toBe('TIMEOUT');
+    expect(result!.state!.clocks[PlayerSide.BLACK]).toBe(0);
+  });
+
+  it('applyClockIncrement adds Fischer-style bonus time to the side that just moved', () => {
+    let state = fresh();
+    state = patch(state, { clocks: { BLACK: 10_000, GOLD: 10_000 } });
+    const next = applyClockIncrement(state, PlayerSide.BLACK, 2_000);
+    expect(next.clocks[PlayerSide.BLACK]).toBe(12_000);
+    expect(next.clocks[PlayerSide.GOLD]).toBe(10_000);
   });
 });

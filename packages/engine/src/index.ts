@@ -12,4 +12,14 @@ export {
   standardMovesFor,
 } from './movement.js';
 export { analyzeSumoPush } from './sumo.js';
-export { createGame, getLegalMoves, applyMove, handlePassOrDeadlock, regroupForNextRound, engine } from './engine.js';
+export {
+  createGame,
+  getLegalMoves,
+  applyMove,
+  handlePassOrDeadlock,
+  regroupForNextRound,
+  tickClock,
+  applyClockIncrement,
+  checkTimeout,
+  engine,
+} from './engine.js';

@@ -1,9 +1,24 @@
+import { GameStatus, PlayerSide } from '@kamisado/engine';
 import { WebSocketServer, WebSocket } from 'ws';
-import { PlayerSide } from '@kamisado/engine';
+import type { ApplyMoveOutcome } from './rooms.js';
 import type { ClientMessage, RoomStateMessage, ServerMessage } from '@kamisado/protocol';
-import { Room, applyResignation, applyRoomMove, applyRoomRegroup, deleteRoomIfEmpty, getOrCreateRoom, getRoom } from './rooms.js';
+import {
+  Room,
+  applyResignation,
+  applyRoomMove,
+  applyRoomRegroup,
+  clearGraceTimer,
+  deleteRoomIfEmpty,
+  getOrCreateRoom,
+  getRoom,
+} from './rooms.js';
 
 const PORT = Number(process.env.PORT ?? 8787);
+
+/** How long a disconnected seat's opponent has to wait before the round is
+ * forfeited to them - the spec's "disconnect grace period" (Phase 3).
+ * Overridable via env for fast integration tests. */
+const DISCONNECT_GRACE_MS = Number(process.env.DISCONNECT_GRACE_MS ?? 60_000);
 
 interface Connection {
   roomId: string;
@@ -57,17 +72,35 @@ function broadcast(room: Room, message: ServerMessage): void {
   for (const ws of sockets) send(ws, message);
 }
 
+function broadcastRoundFinished(room: Room, finished: NonNullable<ApplyMoveOutcome['finished']>): void {
+  const { winner, reason, promotedTower, matchOver, matchWinner } = finished;
+  broadcast(room, {
+    type: 'ROUND_FINISHED',
+    roomId: room.id,
+    winner,
+    reason,
+    promotedTower,
+    newScores: { [PlayerSide.BLACK]: room.gameState.scores[PlayerSide.BLACK].points, [PlayerSide.GOLD]: room.gameState.scores[PlayerSide.GOLD].points },
+    matchOver,
+    matchWinner,
+    gameState: room.gameState,
+  });
+}
+
 function handleJoin(ws: WebSocket, msg: Extract<ClientMessage, { type: 'JOIN_ROOM' }>): void {
   const room = getOrCreateRoom(msg.roomId);
   connections.set(ws, { roomId: msg.roomId, playerId: msg.playerId, playerName: msg.playerName });
 
-  // Reconnect: this playerId already holds a seat.
+  // Reconnect: this playerId already holds a seat. Cancel any pending
+  // disconnect-grace forfeiture timer - they made it back in time.
   if (room.black?.playerId === msg.playerId) {
     room.black.ws = ws;
     room.black.playerName = msg.playerName;
+    clearGraceTimer(room, PlayerSide.BLACK);
   } else if (room.gold?.playerId === msg.playerId) {
     room.gold.ws = ws;
     room.gold.playerName = msg.playerName;
+    clearGraceTimer(room, PlayerSide.GOLD);
   } else {
     const wantsBlack = msg.preferredSide === 'BLACK' || (msg.preferredSide === 'RANDOM' && !room.black);
     const wantsGold = msg.preferredSide === 'GOLD' || (msg.preferredSide === 'RANDOM' && !room.gold && !wantsBlack);
@@ -126,20 +159,7 @@ function handleSubmitMove(ws: WebSocket, msg: Extract<ClientMessage, { type: 'SU
     clocks: room.gameState.clocks,
   });
 
-  if (outcome.finished) {
-    const { winner, reason, promotedTower, matchOver, matchWinner } = outcome.finished;
-    broadcast(room, {
-      type: 'ROUND_FINISHED',
-      roomId: room.id,
-      winner,
-      reason,
-      promotedTower,
-      newScores: { [PlayerSide.BLACK]: room.gameState.scores[PlayerSide.BLACK].points, [PlayerSide.GOLD]: room.gameState.scores[PlayerSide.GOLD].points },
-      matchOver,
-      matchWinner,
-      gameState: room.gameState,
-    });
-  }
+  if (outcome.finished) broadcastRoundFinished(room, outcome.finished);
 }
 
 function handleResign(ws: WebSocket, msg: Extract<ClientMessage, { type: 'RESIGN' }>): void {
@@ -151,20 +171,7 @@ function handleResign(ws: WebSocket, msg: Extract<ClientMessage, { type: 'RESIGN
     return;
   }
   const outcome = applyResignation(room, msg.playerSide);
-  if (outcome.finished) {
-    const { winner, reason, promotedTower, matchOver, matchWinner } = outcome.finished;
-    broadcast(room, {
-      type: 'ROUND_FINISHED',
-      roomId: room.id,
-      winner,
-      reason,
-      promotedTower,
-      newScores: { [PlayerSide.BLACK]: room.gameState.scores[PlayerSide.BLACK].points, [PlayerSide.GOLD]: room.gameState.scores[PlayerSide.GOLD].points },
-      matchOver,
-      matchWinner,
-      gameState: room.gameState,
-    });
-  }
+  if (outcome.finished) broadcastRoundFinished(room, outcome.finished);
 }
 
 function handleRegroup(ws: WebSocket, msg: Extract<ClientMessage, { type: 'REGROUP' }>): void {
@@ -178,6 +185,25 @@ function handleEmote(ws: WebSocket, msg: Extract<ClientMessage, { type: 'SEND_EM
   const room = requireRoom(ws, msg.roomId);
   if (!room) return;
   broadcast(room, { type: 'EMOTE_BROADCAST', roomId: room.id, playerSide: seatOf(room, ws), emoteId: msg.emoteId });
+}
+
+/** Starts (or restarts) the 60s countdown after which `side` forfeits the
+ * round to their opponent for failing to reconnect in time. */
+function scheduleGraceForfeit(room: Room, side: PlayerSide): void {
+  clearGraceTimer(room, side);
+  room.graceTimers[side] = setTimeout(() => {
+    delete room.graceTimers[side];
+    const seat = side === PlayerSide.BLACK ? room.black : room.gold;
+    // Defensive: only forfeit if they're still gone and there's still a
+    // round in progress to forfeit (a reconnect already cancels this timer,
+    // but a message could theoretically race the timer firing).
+    if (!seat || seat.ws || room.gameState.status !== GameStatus.IN_PROGRESS) return;
+
+    const outcome = applyResignation(room, side);
+    if (outcome.finished) broadcastRoundFinished(room, outcome.finished);
+    broadcastRoomState(room);
+    deleteRoomIfEmpty(room.id);
+  }, DISCONNECT_GRACE_MS);
 }
 
 const wss = new WebSocketServer({ port: PORT });
@@ -215,11 +241,24 @@ wss.on('connection', (ws) => {
     if (!conn) return;
     const room = getRoom(conn.roomId);
     if (!room) return;
-    if (room.black?.ws === ws) room.black.ws = null;
-    else if (room.gold?.ws === ws) room.gold.ws = null;
-    else room.spectators.delete(ws);
+
+    let disconnectedSide: PlayerSide | null = null;
+    if (room.black?.ws === ws) {
+      room.black.ws = null;
+      disconnectedSide = PlayerSide.BLACK;
+    } else if (room.gold?.ws === ws) {
+      room.gold.ws = null;
+      disconnectedSide = PlayerSide.GOLD;
+    } else {
+      room.spectators.delete(ws);
+    }
     broadcastRoomState(room);
-    deleteRoomIfEmpty(conn.roomId);
+
+    if (disconnectedSide && room.gameState.status === GameStatus.IN_PROGRESS) {
+      scheduleGraceForfeit(room, disconnectedSide);
+    } else {
+      deleteRoomIfEmpty(conn.roomId);
+    }
   });
 });
 

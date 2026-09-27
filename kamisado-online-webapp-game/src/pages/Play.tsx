@@ -82,7 +82,7 @@ function GameScreen({
 
       <div className="flex w-full max-w-4xl flex-col items-center gap-6 lg:flex-row lg:items-start lg:justify-center">
         <div className="order-2 lg:order-1">
-          <GameHud state={game.state} blackName={blackName} goldName={goldName} symbolsEnabled={symbolsEnabled} />
+          <GameHud state={game.state} blackName={blackName} goldName={goldName} symbolsEnabled={symbolsEnabled} showClock={!!setup.timeControl} />
         </div>
 
         <div className="order-1 flex flex-col items-center gap-4 lg:order-2">

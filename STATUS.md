@@ -58,22 +58,38 @@ doesn't fully pin down) sorts by end-of-round advancement then column.
 - Real-time multiplayer: a WebSocket room server (`packages/room-server/`,
   reusing the same engine) implementing the `JOIN_ROOM` / `SUBMIT_MOVE` /
   `RESIGN` / `SEND_EMOTE` protocol from `docs/DATA_MODELS_AND_PROTOCOL_SPEC.md`,
-  plus room creation, shareable links, spectators, and resignation.
+  plus room creation, shareable links, spectators, resignation, and a 60s
+  disconnect-grace period (reconnecting with the same browser cancels the
+  forfeiture countdown; failing to reconnect in time forfeits the round).
+- Real time controls (Blitz 1+2 / Rapid 5+5 / Classical 15+0, or untimed),
+  with a live per-player countdown, Fischer increments, and server/engine-
+  enforced timeout adjudication (`tickClock` / `checkTimeout` in the engine).
+- A Daily Puzzle mode: a small hand-built, engine-verified mate-in-X catalog
+  (3 puzzles so far, rotating by calendar day) with move validation, a
+  "Gold's reply is forced" auto-play for the opponent's turns, and a
+  localStorage-backed solve streak.
 
 All of this was driven with a real headless Chromium via Playwright, not just
 typechecked: the production build (`npm run build`) succeeds, and browser runs
 verified moves, Sumo push highlighting, the AI responding automatically over a
-color-forced turn, and two separate browser contexts playing the same room
-in real time with moves, color-forcing, and seat assignment all propagating
-correctly. That process caught two real bugs (both fixed and re-verified): a
-React 18 StrictMode double-invocation issue that double-recorded every move,
-in both the local-game hook and the room-connection hook independently, from
-mutating a ref inside a `setState` functional updater.
+color-forced turn, two separate browser contexts playing the same room
+in real time with moves/color-forcing/seat assignment propagating correctly,
+a live Blitz clock counting down and correctly timing a player out after the
+real 60 seconds elapsed, a disconnect/reconnect cycle correctly cancelling a
+pending forfeiture while an unanswered one actually forfeits the round after
+the grace period, and all 3 daily puzzles solving correctly (plus the
+wrong-move "try again" path) through the real UI. That process caught three
+real bugs (all fixed and re-verified): a React 18 StrictMode double-
+invocation issue that double-recorded every move, independently in the
+local-game hook and the room-connection hook, and again in the puzzle page's
+streak-recording logic - each time from calling an impure function (a ref
+mutation or a localStorage write) inside a `setState` functional updater or
+directly during render, instead of a plain event handler or `useEffect`.
 
-**Not built**: ranked ELO matchmaking/ladder, account systems, time-control
-enforcement beyond a basic clock field, daily puzzles, replay/analysis
-viewer, friends lists, tournaments, spectator theater, and streamer overlays
-(Phases 3-5 of `PLAN.md`).
+**Not built**: ranked ELO matchmaking/ladder, account systems, a replay/
+analysis viewer, friends lists, tournaments, spectator theater, streamer
+overlays, and the other ~47 puzzle stages a real "50+ stage" catalog would
+need (Phases 3-5 of `PLAN.md`).
 
 ## Android app (`kamisado-android-app/`) - two different verification levels
 

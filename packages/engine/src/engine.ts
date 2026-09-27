@@ -373,6 +373,53 @@ export function regroupForNextRound(state: GameState, fillFromLeft: boolean): Ga
   };
 }
 
+/**
+ * Deducts elapsed real time (since `state.lastClockUpdate`) from the active
+ * player's clock and advances `lastClockUpdate` to `now`. Not part of
+ * IKamisadoEngine (the spec's contract is silent on clock semantics beyond
+ * the two GameState fields) - callers that use timed matches should call
+ * this immediately before `applyMove` so the mover's used thinking time is
+ * actually deducted, and untimed games (the default) should simply never
+ * call it. Never lets a clock go negative.
+ */
+export function tickClock(state: GameState, now: number): GameState {
+  if (state.status !== GameStatus.IN_PROGRESS) return state;
+  const mover = state.activePlayer;
+  const elapsed = Math.max(0, now - state.lastClockUpdate);
+  const remaining = Math.max(0, state.clocks[mover] - elapsed);
+  return { ...state, clocks: { ...state.clocks, [mover]: remaining }, lastClockUpdate: now };
+}
+
+/** Adds a post-move increment to the side that just moved (standard
+ * "Fischer" increment semantics), e.g. Blitz's +2s per move. */
+export function applyClockIncrement(state: GameState, side: PlayerSide, incrementMs: number): GameState {
+  if (incrementMs <= 0) return state;
+  const next = state.clocks[side] + incrementMs;
+  return { ...state, clocks: { ...state.clocks, [side]: next } };
+}
+
+/**
+ * Ticks the clock forward to `now` and, if that leaves the active player's
+ * clock at zero, ends the round in their opponent's favor by timeout.
+ * Returns `null` if the game isn't in progress or nobody has timed out.
+ * Callers driving a timed match should poll this independently of move
+ * submission (a player who simply stops moving still needs to lose on time).
+ */
+export function checkTimeout(state: GameState, now: number): MoveResult | null {
+  if (state.status !== GameStatus.IN_PROGRESS) return null;
+  const ticked = tickClock(state, now);
+  if (ticked.clocks[ticked.activePlayer] > 0) return null;
+
+  const winner = otherSide(ticked.activePlayer);
+  const finalState: GameState = {
+    ...ticked,
+    status: GameStatus.ROUND_OVER,
+    roundWinner: winner,
+    roundOverReason: 'TIMEOUT',
+  };
+  return { success: true, state: finalState, isRoundOver: true, roundWinner: winner };
+}
+
 export const engine: IKamisadoEngine = {
   createGame,
   getLegalMoves,
