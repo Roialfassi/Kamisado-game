@@ -1,0 +1,14 @@
+{
+  "name": "kamisado-monorepo",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "kamisado-online-webapp-game"
+  ],
+  "scripts": {
+    "test:engine": "npm test -w @kamisado/engine",
+    "dev:web": "npm run dev -w kamisado-online-webapp-game",
+    "build:web": "npm run build -w kamisado-online-webapp-game",
+    "dev:room-server": "npm run dev -w @kamisado/room-server"
+  }
+}
