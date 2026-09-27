@@ -4,6 +4,8 @@ import { PlayerSide } from '@kamisado/engine';
 import { Board } from '../components/Board.js';
 import { GameHud } from '../components/GameHud.js';
 import { MoveHistory } from '../components/MoveHistory.js';
+import { ReplayViewer } from '../components/ReplayViewer.js';
+import { copyToClipboard } from '../lib/clipboard.js';
 import { generateRoomSlug } from '../lib/roomSlug.js';
 import { useRoomConnection } from '../multiplayer/useRoomConnection.js';
 import type { PreferredSide } from '@kamisado/protocol';
@@ -77,6 +79,7 @@ function JoinRoom({ roomId }: { roomId: string }) {
 function RoomArena({ roomId, playerName, preferredSide }: { roomId: string; playerName: string; preferredSide: PreferredSide }) {
   const conn = useRoomConnection(roomId, playerName, preferredSide);
   const [copied, setCopied] = useState(false);
+  const [showReplay, setShowReplay] = useState(false);
 
   if (conn.status === 'CLOSED') {
     return (
@@ -112,10 +115,11 @@ function RoomArena({ roomId, playerName, preferredSide }: { roomId: string; play
           Room <strong className="text-amber-200">{roomId}</strong> - {spectatorCount} spectator{spectatorCount === 1 ? '' : 's'}
         </span>
         <button
-          onClick={() => {
-            navigator.clipboard?.writeText(shareUrl);
-            setCopied(true);
-            window.setTimeout(() => setCopied(false), 1500);
+          onClick={async () => {
+            if (await copyToClipboard(shareUrl)) {
+              setCopied(true);
+              window.setTimeout(() => setCopied(false), 1500);
+            }
           }}
           className="rounded bg-black/30 px-3 py-1 hover:bg-black/50"
         >
@@ -163,6 +167,15 @@ function RoomArena({ roomId, playerName, preferredSide }: { roomId: string; play
                   </button>
                 </div>
               )}
+              {conn.history.length > 0 && (
+                <button
+                  onClick={() => setShowReplay(true)}
+                  className="mt-3 rounded bg-black/30 px-4 py-1.5 text-sm font-semibold hover:bg-black/50"
+                  data-testid="view-replay"
+                >
+                  View Replay
+                </button>
+              )}
             </div>
           )}
         </div>
@@ -170,6 +183,10 @@ function RoomArena({ roomId, playerName, preferredSide }: { roomId: string; play
         <MoveHistory history={conn.history} />
       </div>
       {conn.lastError && <p className="text-xs text-red-400">{conn.lastError}</p>}
+
+      {showReplay && conn.roundStartState && (
+        <ReplayViewer initialState={conn.roundStartState} history={conn.history} onClose={() => setShowReplay(false)} />
+      )}
     </div>
   );
 }

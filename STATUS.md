@@ -68,6 +68,10 @@ doesn't fully pin down) sorts by end-of-round advancement then column.
   (3 puzzles so far, rotating by calendar day) with move validation, a
   "Gold's reply is forced" auto-play for the opponent's turns, and a
   localStorage-backed solve streak.
+- A Replay/Analysis viewer for a just-finished round (local hotseat/AI or a
+  room game): step forward/backward through every ply (each snapshot is the
+  real post-move `GameState`, not re-simulated), click any notation line to
+  jump to it, and export the full notation text.
 
 All of this was driven with a real headless Chromium via Playwright, not just
 typechecked: the production build (`npm run build`) succeeds, and browser runs
@@ -77,19 +81,24 @@ in real time with moves/color-forcing/seat assignment propagating correctly,
 a live Blitz clock counting down and correctly timing a player out after the
 real 60 seconds elapsed, a disconnect/reconnect cycle correctly cancelling a
 pending forfeiture while an unanswered one actually forfeits the round after
-the grace period, and all 3 daily puzzles solving correctly (plus the
-wrong-move "try again" path) through the real UI. That process caught three
-real bugs (all fixed and re-verified): a React 18 StrictMode double-
-invocation issue that double-recorded every move, independently in the
-local-game hook and the room-connection hook, and again in the puzzle page's
-streak-recording logic - each time from calling an impure function (a ref
-mutation or a localStorage write) inside a `setState` functional updater or
-directly during render, instead of a plain event handler or `useEffect`.
+the grace period, all 3 daily puzzles solving correctly (plus the wrong-move
+"try again" path), and a genuine 5-move win from the true initial position
+(found and verified directly against the engine first) replayed step-by-step
+through the viewer, confirming ply 0 is the full 16-tower starting position
+and each step matches. That process caught four real bugs (all fixed and
+re-verified): a React 18 StrictMode double-invocation issue that
+double-recorded every move, independently in the local-game hook and the
+room-connection hook, and again in the puzzle page's streak-recording logic
+- each time from calling an impure function (a ref mutation or a localStorage
+write) inside a `setState` functional updater or directly during render,
+instead of a plain event handler or `useEffect` - and an unhandled promise
+rejection when `navigator.clipboard.writeText` is denied permission (now a
+`copyToClipboard` helper that fails closed instead of throwing).
 
-**Not built**: ranked ELO matchmaking/ladder, account systems, a replay/
-analysis viewer, friends lists, tournaments, spectator theater, streamer
-overlays, and the other ~47 puzzle stages a real "50+ stage" catalog would
-need (Phases 3-5 of `PLAN.md`).
+**Not built**: ranked ELO matchmaking/ladder, account systems, "play from
+this position against a bot" branching in the replay viewer, friends lists,
+tournaments, spectator theater, streamer overlays, and the other ~47 puzzle
+stages a real "50+ stage" catalog would need (Phases 3-5 of `PLAN.md`).
 
 ## Android app (`kamisado-android-app/`) - two different verification levels
 

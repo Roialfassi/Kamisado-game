@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Coordinate, Move, PlayerSide, findTowerAt, getLegalMoves } from '@kamisado/engine';
+import { Coordinate, GameState, Move, PlayerSide, findTowerAt, getLegalMoves } from '@kamisado/engine';
 import type { ClientMessage, EmoteId, PreferredSide, RoomStateMessage, RoundFinishedMessage, ServerMessage } from '@kamisado/protocol';
 import { formatMove } from '../lib/notation.js';
 import type { HistoryEntry } from '../state/useKamisadoGame.js';
@@ -30,6 +30,7 @@ export function useRoomConnection(roomId: string, playerName: string, preferredS
   const [lastError, setLastError] = useState<string | null>(null);
   const [selected, setSelected] = useState<Coordinate | null>(null);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
+  const [roundStartState, setRoundStartState] = useState<GameState | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const playerId = useRef(getOrCreatePlayerId()).current;
   const moveCounter = useRef(1);
@@ -54,6 +55,7 @@ export function useRoomConnection(roomId: string, playerName: string, preferredS
           lastSeenRound.current = msg.gameState.currentRound;
           moveCounter.current = 1;
           setHistory([]);
+          setRoundStartState(msg.gameState);
         }
         setRoomState(msg);
       } else if (msg.type === 'MOVE_BROADCAST') {
@@ -61,7 +63,11 @@ export function useRoomConnection(roomId: string, playerName: string, preferredS
         // event handler - NOT inside a setState functional updater, which
         // React 18 StrictMode invokes twice in development to check for
         // impurity and would otherwise double-advance this ref.
-        const entry: HistoryEntry = { move: msg.move, notation: formatMove(moveCounter.current, msg.move, msg.gameState.requiredColor) };
+        const entry: HistoryEntry = {
+          move: msg.move,
+          notation: formatMove(moveCounter.current, msg.move, msg.gameState.requiredColor),
+          stateAfter: msg.gameState,
+        };
         moveCounter.current += 1;
         setRoomState((prev) => (prev ? { ...prev, gameState: msg.gameState } : prev));
         setHistory((h) => [...h, entry]);
@@ -125,5 +131,20 @@ export function useRoomConnection(roomId: string, playerName: string, preferredS
     [roomState, selected, legalDestinations, submitMove],
   );
 
-  return { status, roomState, lastFinished, lastError, selected, legalDestinations, history, selectSquare, submitMove, resign, regroup, sendEmote, playerId };
+  return {
+    status,
+    roomState,
+    lastFinished,
+    lastError,
+    selected,
+    legalDestinations,
+    history,
+    roundStartState,
+    selectSquare,
+    submitMove,
+    resign,
+    regroup,
+    sendEmote,
+    playerId,
+  };
 }

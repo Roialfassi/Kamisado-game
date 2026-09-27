@@ -28,6 +28,10 @@ export type Controller = 'HUMAN' | BotTier;
 export interface HistoryEntry {
   notation: string;
   move: Move;
+  /** The full board state right after this entry (including any
+   * auto-resolved pass chain) - lets a replay viewer jump to any ply without
+   * re-simulating anything. */
+  stateAfter: GameState;
 }
 
 export interface UseKamisadoGameOptions {
@@ -40,6 +44,9 @@ export interface UseKamisadoGameOptions {
 export interface KamisadoGameApi {
   state: GameState;
   history: HistoryEntry[];
+  /** The board position at the start of the current round (ply 0 for the
+   * replay viewer) - reset on restart and on each regroup. */
+  roundStartState: GameState;
   selected: Coordinate | null;
   legalDestinations: Move[];
   lastEvent: 'PASS' | 'DEADLOCK' | 'ROUND_OVER' | 'MATCH_OVER' | null;
@@ -56,13 +63,16 @@ function controllerFor(state: GameState, options: UseKamisadoGameOptions): Contr
 
 export function useKamisadoGame(options: UseKamisadoGameOptions): KamisadoGameApi {
   const [state, setState] = useState<GameState>(() => createGame(options.format, options.timeControl?.initialMs ?? 0));
+  const [roundStartState, setRoundStartState] = useState<GameState>(state);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [selected, setSelected] = useState<Coordinate | null>(null);
   const [lastEvent, setLastEvent] = useState<KamisadoGameApi['lastEvent']>(null);
   const moveCounter = useRef(1);
 
   const restart = useCallback(() => {
-    setState(createGame(options.format, options.timeControl?.initialMs ?? 0));
+    const fresh = createGame(options.format, options.timeControl?.initialMs ?? 0);
+    setState(fresh);
+    setRoundStartState(fresh);
     setHistory([]);
     setSelected(null);
     setLastEvent(null);
@@ -102,7 +112,6 @@ export function useKamisadoGame(options: UseKamisadoGameOptions): KamisadoGameAp
       if (options.timeControl && options.timeControl.incrementMs > 0 && next.status === GameStatus.IN_PROGRESS) {
         next = applyClockIncrement(next, move.playerSide, options.timeControl.incrementMs);
       }
-      const entries: HistoryEntry[] = [{ move, notation: formatMove(moveCounter.current++, move, next.requiredColor) }];
 
       if (move.type === MoveType.SUMO_PUSH) playSumoPush();
       else playPlace();
@@ -124,6 +133,7 @@ export function useKamisadoGame(options: UseKamisadoGameOptions): KamisadoGameAp
         playVictory();
       }
 
+      const entries: HistoryEntry[] = [{ move, notation: formatMove(moveCounter.current++, move, next.requiredColor), stateAfter: next }];
       setHistory((h) => [...h, ...entries]);
       setState(next);
       setSelected(null);
@@ -170,12 +180,14 @@ export function useKamisadoGame(options: UseKamisadoGameOptions): KamisadoGameAp
 
   const regroup = useCallback(
     (fillFromLeft: boolean) => {
-      setState((prev) => regroupForNextRound(prev, fillFromLeft));
+      const next = regroupForNextRound(state, fillFromLeft);
+      setState(next);
+      setRoundStartState(next);
       setHistory([]);
       setLastEvent(null);
       moveCounter.current = 1;
     },
-    [],
+    [state],
   );
 
   // Autonomous bot turns.
@@ -210,6 +222,7 @@ export function useKamisadoGame(options: UseKamisadoGameOptions): KamisadoGameAp
   return {
     state,
     history,
+    roundStartState,
     selected,
     legalDestinations,
     lastEvent,

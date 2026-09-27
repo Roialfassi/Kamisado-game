@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { PlayerSide } from '@kamisado/engine';
+import { GameStatus, PlayerSide } from '@kamisado/engine';
 import { Board } from '../components/Board.js';
 import { GameHud } from '../components/GameHud.js';
 import { MoveHistory } from '../components/MoveHistory.js';
 import { RegroupPrompt } from '../components/RegroupPrompt.js';
+import { ReplayViewer } from '../components/ReplayViewer.js';
 import { GameSetup, GameSetupValue } from '../components/GameSetup.js';
 import { useKamisadoGame } from '../state/useKamisadoGame.js';
 import { isMuted, setMuted } from '../lib/sound.js';
@@ -59,6 +60,7 @@ function GameScreen({
   onExitSetup: () => void;
 }) {
   const game = useKamisadoGame(setup);
+  const [showReplay, setShowReplay] = useState(false);
   const bothHuman = setup.black === 'HUMAN' && setup.gold === 'HUMAN';
   const blackName = setup.black === 'HUMAN' ? (bothHuman ? 'Black (Player 1)' : 'Black (You)') : `Black (${setup.black})`;
   const goldName = setup.gold === 'HUMAN' ? (bothHuman ? 'Gold (Player 2)' : 'Gold (You)') : `Gold (${setup.gold})`;
@@ -96,12 +98,25 @@ function GameScreen({
             onSquareClick={game.selectSquare}
           />
           <RegroupPrompt state={game.state} blackName={blackName} goldName={goldName} onRegroup={game.regroup} onRestart={game.restart} />
+          {game.state.status !== GameStatus.IN_PROGRESS && game.history.length > 0 && (
+            <button
+              onClick={() => setShowReplay(true)}
+              className="rounded bg-black/30 px-4 py-2 text-sm font-semibold hover:bg-black/50"
+              data-testid="view-replay"
+            >
+              View Replay
+            </button>
+          )}
         </div>
 
         <div className="order-3">
           <MoveHistory history={game.history} />
         </div>
       </div>
+
+      {showReplay && (
+        <ReplayViewer initialState={game.roundStartState} history={game.history} onClose={() => setShowReplay(false)} />
+      )}
     </div>
   );
 }
