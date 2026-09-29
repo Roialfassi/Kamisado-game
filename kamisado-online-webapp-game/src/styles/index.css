@@ -15,3 +15,31 @@ body {
 .font-display {
   font-family: 'Hiragino Mincho ProN', 'Yu Mincho', 'Noto Serif JP', Georgia, serif;
 }
+
+/* Colour-lock feedback: the tower that must move this turn. */
+@keyframes must-move-pulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+.must-move-halo {
+  position: absolute;
+  inset: 2px;
+  z-index: 25;
+  pointer-events: none;
+  border-radius: 6px;
+  border: 3px solid #ffd566;
+  box-shadow: 0 0 14px 3px rgba(255, 213, 102, 0.7), inset 0 0 12px rgba(255, 213, 102, 0.5);
+  animation: must-move-pulse 1.4s ease-in-out infinite;
+}
+.pickable-ring {
+  position: absolute;
+  inset: 4px;
+  z-index: 24;
+  pointer-events: none;
+  border-radius: 6px;
+  border: 2px dashed rgba(255, 236, 170, 0.95);
+  box-shadow: 0 0 8px rgba(255, 236, 170, 0.5);
+}
+@media (prefers-reduced-motion: reduce) {
+  .must-move-halo { animation: none; }
+}

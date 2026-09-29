@@ -22,6 +22,7 @@ import { BotTier, chooseBotMove } from '../ai/bot.js';
 import { formatMove } from '../lib/notation.js';
 import { TimeControlChoice } from '../lib/timeControl.js';
 import { playPass, playPlace, playSumoPush, playVictory } from '../lib/sound.js';
+import { resolveSelection } from '../lib/mustMove.js';
 
 export type Controller = 'HUMAN' | BotTier;
 
@@ -47,6 +48,8 @@ export interface KamisadoGameApi {
   /** The board position at the start of the current round (ply 0 for the
    * replay viewer) - reset on restart and at the start of each round. */
   roundStartState: GameState;
+  /** The square that reads as "clicked": the player's click, or - on a forced
+   * turn - the tower the colour lock makes them move. */
   selected: Coordinate | null;
   legalDestinations: Move[];
   lastEvent: 'PASS' | 'DEADLOCK' | 'ROUND_OVER' | 'MATCH_OVER' | null;
@@ -66,7 +69,9 @@ export function useKamisadoGame(options: UseKamisadoGameOptions): KamisadoGameAp
   const [state, setState] = useState<GameState>(() => createGame(options.format, options.timeControl?.initialMs ?? 0));
   const [roundStartState, setRoundStartState] = useState<GameState>(state);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
-  const [selected, setSelected] = useState<Coordinate | null>(null);
+  // Only the player's explicit click; the forced tower is auto-selected on top
+  // of this (see `selected` below) so the colour lock is visible without a click.
+  const [explicitSelected, setSelected] = useState<Coordinate | null>(null);
   const [lastEvent, setLastEvent] = useState<KamisadoGameApi['lastEvent']>(null);
   const moveCounter = useRef(1);
 
@@ -141,6 +146,9 @@ export function useKamisadoGame(options: UseKamisadoGameOptions): KamisadoGameAp
     },
     [state, options.timeControl, applyTimeout],
   );
+
+  const canAct = state.status === GameStatus.IN_PROGRESS && controllerFor(state, options) === 'HUMAN';
+  const selected = useMemo(() => resolveSelection(state, explicitSelected, canAct), [state, explicitSelected, canAct]);
 
   const legalDestinations = useMemo<Move[]>(() => {
     if (!selected) return [];
@@ -218,7 +226,7 @@ export function useKamisadoGame(options: UseKamisadoGameOptions): KamisadoGameAp
     return () => window.clearInterval(interval);
   }, [state, options.timeControl, applyTimeout]);
 
-  const isHumanTurn = state.status === GameStatus.IN_PROGRESS && controllerFor(state, options) === 'HUMAN';
+  const isHumanTurn = canAct;
 
   return {
     state,

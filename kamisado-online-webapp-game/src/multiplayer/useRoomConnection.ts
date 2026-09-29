@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Coordinate, GameState, Move, PlayerSide, findTowerAt, getLegalMoves } from '@kamisado/engine';
 import type { ClientMessage, EmoteBroadcastMessage, EmoteId, PreferredSide, RoomStateMessage, RoundFinishedMessage, ServerMessage } from '@kamisado/protocol';
 import { formatMove } from '../lib/notation.js';
+import { resolveSelection } from '../lib/mustMove.js';
 import type { HistoryEntry } from '../state/useKamisadoGame.js';
 
 function wsUrl(): string {
@@ -28,7 +29,7 @@ export function useRoomConnection(roomId: string, playerName: string, preferredS
   const [roomState, setRoomState] = useState<RoomStateMessage | null>(null);
   const [lastFinished, setLastFinished] = useState<RoundFinishedMessage | null>(null);
   const [lastError, setLastError] = useState<string | null>(null);
-  const [selected, setSelected] = useState<Coordinate | null>(null);
+  const [explicitSelected, setSelected] = useState<Coordinate | null>(null);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [roundStartState, setRoundStartState] = useState<GameState | null>(null);
   const [lastEmote, setLastEmote] = useState<(EmoteBroadcastMessage & { key: number }) | null>(null);
@@ -95,6 +96,9 @@ export function useRoomConnection(roomId: string, playerName: string, preferredS
   const resign = useCallback((playerSide: PlayerSide) => send({ type: 'RESIGN', roomId, playerSide }), [send, roomId]);
   const startNextRound = useCallback(() => send({ type: 'REGROUP', roomId }), [send, roomId]);
   const sendEmote = useCallback((emoteId: EmoteId) => send({ type: 'SEND_EMOTE', roomId, emoteId }), [send, roomId]);
+
+  const canAct = !!roomState && roomState.yourSide !== 'SPECTATOR' && roomState.gameState.activePlayer === roomState.yourSide;
+  const selected = roomState ? resolveSelection(roomState.gameState, explicitSelected, canAct) : null;
 
   const legalDestinations: Move[] = (() => {
     if (!roomState || !selected) return [];

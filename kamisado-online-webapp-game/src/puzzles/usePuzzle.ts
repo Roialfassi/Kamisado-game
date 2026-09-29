@@ -11,14 +11,18 @@ import {
 } from '@kamisado/engine';
 import { Puzzle } from './data.js';
 import { resolveGoldAndPasses } from './solver.js';
+import { resolveSelection } from '../lib/mustMove.js';
 
 export type PuzzleStatus = 'PLAYING' | 'SOLVED' | 'FAILED';
 
 export function usePuzzle(puzzle: Puzzle) {
   const [state, setState] = useState<GameState>(() => puzzle.build());
-  const [selected, setSelected] = useState<Coordinate | null>(null);
+  const [explicitSelected, setSelected] = useState<Coordinate | null>(null);
   const [movesUsed, setMovesUsed] = useState(0);
   const [status, setStatus] = useState<PuzzleStatus>('PLAYING');
+
+  const canAct = status === 'PLAYING' && state.activePlayer === PlayerSide.BLACK;
+  const selected = useMemo(() => resolveSelection(state, explicitSelected, canAct), [state, explicitSelected, canAct]);
 
   const legalDestinations = useMemo<Move[]>(() => {
     if (!selected || status !== 'PLAYING') return [];

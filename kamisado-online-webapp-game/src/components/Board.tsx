@@ -1,6 +1,7 @@
 import { Color, Coordinate, GameState, Move, MoveType, PlayerSide, findTowerAt } from '@kamisado/engine';
 import { COLOR_HEX, COLOR_KANJI, isDarkSquare } from '../lib/theme.js';
 import { TowerPiece } from './TowerPiece.js';
+import { getMustMoveTower, getPickableTowers } from '../lib/mustMove.js';
 
 export interface BoardProps {
   state: GameState;
@@ -29,6 +30,10 @@ export function Board({
   onSquareClick,
 }: BoardProps) {
   const { rows, cols } = visualOrder(perspective);
+  // The colour lock's forced tower is always ringed (whoever's turn it is), and
+  // on a free-choice turn every movable tower of a player who can act is ringed.
+  const mustMoveId = getMustMoveTower(state)?.id ?? null;
+  const pickableIds = new Set(interactive ? getPickableTowers(state).map((t) => t.id) : []);
   const destinationSet = new Map(legalDestinations.map((m) => [`${m.to.row},${m.to.col}`, m]));
 
   return (
@@ -72,6 +77,8 @@ export function Board({
               const tower = findTowerAt(state, row, col);
               const key = `${row},${col}`;
               const isSelected = selected?.row === row && selected?.col === col;
+              const isMustMove = !!tower && tower.id === mustMoveId;
+              const isPickable = !!tower && pickableIds.has(tower.id);
               const destMove = destinationSet.get(key);
               const isDestination = !!destMove;
               const isPushTarget = destMove?.type === MoveType.SUMO_PUSH;
@@ -83,7 +90,8 @@ export function Board({
                   type="button"
                   key={key}
                   role="gridcell"
-                  aria-label={`${color} square, ${tower ? `${tower.side} ${tower.color} tower` : 'empty'}`}
+                  aria-label={`${color} square, ${tower ? `${tower.side} ${tower.color} tower${isMustMove ? ', must move this turn' : ''}` : 'empty'}`}
+                  data-must-move={isMustMove ? 'true' : undefined}
                   data-testid="square"
                   data-row={row}
                   data-col={col}
@@ -122,14 +130,14 @@ export function Board({
 
                   {/* Legal Destination Highlight (Glowing Golden Lotus Circle) */}
                   {isDestination && !isPushTarget && (
-                    <span className="pointer-events-none absolute z-15 flex items-center justify-center w-6 h-6 sm:w-8 sm:h-8 rounded-full border-2 border-amber-200 bg-amber-300/40 backdrop-blur-[0.5px] shadow-[0_0_12px_rgba(252,211,77,0.85)] animate-pulse">
+                    <span data-testid="legal-destination" className="pointer-events-none absolute z-15 flex items-center justify-center w-6 h-6 sm:w-8 sm:h-8 rounded-full border-2 border-amber-200 bg-amber-300/40 backdrop-blur-[0.5px] shadow-[0_0_12px_rgba(252,211,77,0.85)] animate-pulse">
                       <span className="w-2 h-2 rounded-full bg-amber-100 shadow-sm" />
                     </span>
                   )}
 
                   {/* Sumo Push Target Highlight (Combat Dragon Reticle) */}
                   {isDestination && isPushTarget && (
-                    <span className="pointer-events-none absolute inset-0 z-15 flex items-center justify-center border-4 border-red-500 bg-red-600/35 shadow-[0_0_20px_rgba(239,68,68,0.9)] animate-pulse">
+                    <span data-testid="legal-destination" className="pointer-events-none absolute inset-0 z-15 flex items-center justify-center border-4 border-red-500 bg-red-600/35 shadow-[0_0_20px_rgba(239,68,68,0.9)] animate-pulse">
                       <span className="text-white text-xs font-bold font-mono tracking-tighter bg-red-700/80 px-1 rounded shadow">
                         PUSH
                       </span>
@@ -140,6 +148,9 @@ export function Board({
                   {isSelected && (
                     <span className="pointer-events-none absolute inset-0 ring-4 ring-amber-300/90 ring-inset shadow-[0_0_16px_rgba(251,191,36,0.9)] z-20" />
                   )}
+
+                  {isMustMove && <span className="must-move-halo" data-testid="must-move-halo" />}
+                  {isPickable && <span className="pickable-ring" data-testid="pickable-ring" />}
 
                   {/* 3D Pagoda Dragon Tower Piece */}
                   {tower && (
