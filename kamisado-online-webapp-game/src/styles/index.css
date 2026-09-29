@@ -7,7 +7,7 @@
   /* One size drives the grid AND the coordinate rails: as wide as the screen
      allows, but never taller than the space left under the header, both player bars
      and the turn banner (so nothing important falls below the fold on desktop). */
-  --board-size: min(calc(100vw - 5.5rem), calc(100dvh - 370px), 640px);
+  --board-size: max(14rem, min(calc(100vw - 5.5rem), calc(100dvh - 370px), 640px));
 }
 
 html {
@@ -117,14 +117,16 @@ body {
 }
 .must-move-halo {
   position: absolute;
-  inset: 2px;
+  inset: 0;
   z-index: 25;
   pointer-events: none;
-  border-radius: 8px;
-  border: 3px solid #ffd566;
+  /* dark outer + white inner ring: readable on every tile colour (a single
+     gold ring vanished on yellow/orange/pink); drawn inset so the tile's
+     overflow-hidden can't clip it. */
   box-shadow:
-    0 0 14px 3px rgba(255, 213, 102, 0.7),
-    inset 0 0 12px rgba(255, 213, 102, 0.5);
+    inset 0 0 0 3px #16110a,
+    inset 0 0 0 6px #ffffff,
+    inset 0 0 18px 8px rgba(255, 213, 102, 0.7);
   animation: must-move-pulse 1.4s ease-in-out infinite;
 }
 .pickable-ring {
@@ -133,8 +135,10 @@ body {
   z-index: 24;
   pointer-events: none;
   border-radius: 8px;
-  border: 2px dashed rgba(255, 236, 170, 0.95);
-  box-shadow: 0 0 8px rgba(255, 236, 170, 0.5);
+  border: 2px dashed #ffffff;
+  box-shadow:
+    0 0 0 2px rgba(0, 0, 0, 0.55),
+    inset 0 0 0 2px rgba(0, 0, 0, 0.55);
 }
 
 /* Towers glide between squares: the tower layer positions each piece with a

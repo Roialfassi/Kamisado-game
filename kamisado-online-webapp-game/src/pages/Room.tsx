@@ -149,7 +149,7 @@ function RoomArena({ roomId, playerName, preferredSide }: { roomId: string; play
   const lastMove = conn.history[conn.history.length - 1]?.move ?? null;
 
   return (
-    <div className="mx-auto flex max-w-6xl flex-col items-center gap-4 px-4 py-4 sm:py-6">
+    <div className="mx-auto flex max-w-6xl flex-col items-center gap-4 px-4 py-4 sm:py-6 [--board-size:max(14rem,min(calc(100vw_-_5.5rem),calc(100dvh_-_440px),640px))]">
       <div className="glass flex w-full flex-wrap items-center justify-between gap-2 px-4 py-2.5 text-sm text-stone-300">
         <span className="flex items-center gap-2">
           <span className="chip">Room</span>
@@ -171,7 +171,7 @@ function RoomArena({ roomId, playerName, preferredSide }: { roomId: string; play
           >
             {copied ? 'Copied!' : 'Copy invite link'}
           </button>
-          {!spectator && (
+          {!spectator && gameState.status === GameStatus.IN_PROGRESS && (
             <button onClick={() => conn.resign(yourSide as PlayerSide)} className="btn btn-danger py-1.5" data-testid="resign">
               <Icon name="flag" size={15} /> Resign
             </button>

@@ -171,6 +171,10 @@ function handleResign(ws: WebSocket, msg: Extract<ClientMessage, { type: 'RESIGN
     return;
   }
   const outcome = applyResignation(room, msg.playerSide);
+  if ('error' in outcome) {
+    send(ws, { type: 'ERROR', message: outcome.error });
+    return;
+  }
   if (outcome.finished) broadcastRoundFinished(room, outcome.finished);
 }
 
@@ -207,7 +211,7 @@ function scheduleGraceForfeit(room: Room, side: PlayerSide): void {
     if (!seat || seat.ws || room.gameState.status !== GameStatus.IN_PROGRESS) return;
 
     const outcome = applyResignation(room, side);
-    if (outcome.finished) broadcastRoundFinished(room, outcome.finished);
+    if ('finished' in outcome && outcome.finished) broadcastRoundFinished(room, outcome.finished);
     broadcastRoomState(room);
     deleteRoomIfEmpty(room.id);
   }, DISCONNECT_GRACE_MS);

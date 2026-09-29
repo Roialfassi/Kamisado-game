@@ -65,7 +65,7 @@ export default function DailyPuzzle() {
           )}
           {puzzleGame.status === 'FAILED' && (
             <p className="rounded-xl border border-red-400/30 bg-red-500/10 px-4 py-3 text-sm font-semibold text-red-300">
-              That line doesn&apos;t work out - Gold&apos;s reply is forced, so look for a different move.
+              That line doesn&apos;t work out - look for a different move.
             </p>
           )}
 

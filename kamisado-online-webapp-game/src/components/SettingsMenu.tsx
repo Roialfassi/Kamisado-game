@@ -52,7 +52,7 @@ export function SettingsMenu() {
         <Icon name="gear" />
       </button>
       {open && (
-        <div className="glass-strong absolute right-0 top-12 z-50 w-72 animate-pop-in p-2" role="menu" aria-label="Settings">
+        <div className="glass-strong absolute right-0 top-12 z-50 w-72 animate-pop-in p-2" role="group" aria-label="Settings">
           <Toggle label="Sound effects" hint={muted ? 'Muted' : 'On'} on={!muted} onChange={(next) => setMuted(!next)} testId="toggle-sound" />
           <Toggle
             label="Colourblind symbols"

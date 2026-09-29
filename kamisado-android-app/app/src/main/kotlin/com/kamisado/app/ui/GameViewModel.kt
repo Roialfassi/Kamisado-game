@@ -123,6 +123,7 @@ class GameViewModel(
 
     /** Starts the next round: every tower returns to its own colour square (house rule). */
     fun startNextRound() {
+        if (_state.value.game.status != GameStatus.ROUND_OVER) return // ignore double taps
         val next = reseatForNextRound(_state.value.game)
         moveCounter = 1
         _state.value = _state.value.copy(game = next, history = emptyList(), selected = null, legalDestinations = emptyList())

@@ -95,8 +95,9 @@ export function Board({
           aria-label="Kamisado board"
         >
           <div className="grid h-full w-full grid-cols-8 grid-rows-8">
-            {rows.map((row) =>
-              cols.map((col) => {
+            {rows.map((row) => (
+              <div key={`row-${row}`} role="row" className="contents">
+                {cols.map((col) => {
                 const color: Color = state.boardLayout[row]![col]!;
                 const tower = findTowerAt(state, row, col);
                 const key = `${row},${col}`;
@@ -124,15 +125,18 @@ export function Board({
                     data-tower-side={tower?.side}
                     data-tower-color={tower?.color}
                     data-must-move={isMustMove ? 'true' : undefined}
-                    disabled={!interactive}
-                    onClick={() => onSquareClick({ row, col })}
+                    aria-disabled={!interactive}
+                    tabIndex={interactive ? 0 : -1}
+                    onClick={() => {
+                      if (interactive) onSquareClick({ row, col });
+                    }}
                     className={`group relative flex aspect-square items-center justify-center overflow-hidden focus:outline-none focus-visible:z-30 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white ${
                       interactive ? 'cursor-pointer' : 'cursor-default'
                     }`}
                     style={{
                       backgroundColor: COLOR_HEX[color],
                       boxShadow: isSelected
-                        ? 'inset 0 0 0 3px #ffd700, 0 0 15px rgba(255,215,0,0.8)'
+                        ? 'inset 0 0 0 2px #16110a, inset 0 0 0 5px #fff3b0, 0 0 15px rgba(255,215,0,0.8)'
                         : 'inset 1px 1px 1px rgba(255,255,255,0.22), inset -1px -1px 2px rgba(0,0,0,0.38), inset 0 0 0 1px rgba(0,0,0,0.28)',
                     }}
                   >
@@ -185,7 +189,7 @@ export function Board({
                     {isDestination && isPushTarget && (
                       <span
                         data-testid="legal-destination"
-                        className="pointer-events-none absolute inset-0 z-10 flex animate-pulse items-center justify-center bg-red-600/35 ring-4 ring-inset ring-red-500"
+                        className="pointer-events-none absolute inset-0 z-[26] flex animate-pulse items-center justify-center bg-red-600/35 ring-4 ring-inset ring-red-500"
                       >
                         <span className="rounded bg-red-700/90 px-1 font-mono text-[10px] font-bold tracking-tight text-white shadow">PUSH</span>
                       </span>
@@ -195,8 +199,9 @@ export function Board({
                     {isPickable && <span className="pickable-ring" data-testid="pickable-ring" />}
                   </button>
                 );
-              }),
-            )}
+                })}
+              </div>
+            ))}
           </div>
 
           {/* Tower layer: each piece keeps its DOM node (keyed by id) and is moved

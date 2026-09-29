@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { GameState, PlayerSide } from '@kamisado/engine';
 import { copyToClipboard } from '../lib/clipboard.js';
 import { HistoryEntry } from '../state/useKamisadoGame.js';
@@ -21,6 +21,16 @@ export function ReplayViewer({ initialState, history, onClose }: ReplayViewerPro
 
   const displayState = ply === 0 ? initialState : (history[ply - 1]?.stateAfter ?? initialState);
   const notationText = useMemo(() => history.map((h) => h.notation).join('\n'), [history]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      e.stopPropagation(); // capture phase: the dialog behind must not also close
+      onClose();
+    };
+    document.addEventListener('keydown', onKey, true);
+    return () => document.removeEventListener('keydown', onKey, true);
+  }, [onClose]);
 
   const goTo = (next: number) => setPly(Math.max(0, Math.min(history.length, next)));
 

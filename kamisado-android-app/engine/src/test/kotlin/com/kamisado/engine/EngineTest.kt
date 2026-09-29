@@ -423,4 +423,46 @@ class EngineTest {
         assertNull(next.requiredColor)
         assertNull(next.roundWinner)
     }
+
+    // ---- Deadlock wins score (mirrors the TypeScript suite) ----
+
+    private fun deadlockState(format: MatchFormat): GameState {
+        var state = fresh(format)
+        state = place(state, PlayerSide.GOLD, Color.BLUE, 3, 4)
+        state = place(state, PlayerSide.BLACK, Color.ORANGE, 2, 0)
+        state = place(state, PlayerSide.GOLD, Color.GREEN, 2, 3)
+        state = place(state, PlayerSide.GOLD, Color.RED, 2, 4)
+        state = place(state, PlayerSide.GOLD, Color.YELLOW, 2, 5)
+        state = place(state, PlayerSide.BLACK, Color.PINK, 3, 0)
+        state = place(state, PlayerSide.BLACK, Color.PURPLE, 3, 1)
+        return state.copy(activePlayer = PlayerSide.GOLD, requiredColor = Color.BLUE, lastPhysicalMover = PlayerSide.BLACK)
+    }
+
+    @Test
+    fun `a deadlock win awards the winner one point and ends the round`() {
+        val result = handlePassOrDeadlock(deadlockState(MatchFormat.STANDARD))
+        assertTrue(result.isRoundOver)
+        assertEquals(false, result.isMatchOver)
+        assertEquals(GameStatus.ROUND_OVER, result.state!!.status)
+        assertEquals(1, result.state.scores.getValue(PlayerSide.GOLD).points)
+        assertEquals(0, result.state.scores.getValue(PlayerSide.BLACK).points)
+        assertEquals(SumoRank.NORMAL, tower(result.state, PlayerSide.GOLD, Color.BLUE).sumoRank)
+    }
+
+    @Test
+    fun `a deadlock win can decide the match`() {
+        val result = handlePassOrDeadlock(deadlockState(MatchFormat.SINGLE_ROUND))
+        assertTrue(result.isMatchOver)
+        assertEquals(PlayerSide.GOLD, result.matchWinner)
+        assertEquals(GameStatus.MATCH_OVER, result.state!!.status)
+    }
+
+    @Test
+    fun `reseat is a no-op unless the round is over`() {
+        val playing = fresh(MatchFormat.STANDARD)
+        assertEquals(playing, reseatForNextRound(playing))
+        val once = reseatForNextRound(finishedRound())
+        assertEquals(GameStatus.IN_PROGRESS, once.status)
+        assertEquals(once, reseatForNextRound(once)) // a double tap must not skip another round
+    }
 }

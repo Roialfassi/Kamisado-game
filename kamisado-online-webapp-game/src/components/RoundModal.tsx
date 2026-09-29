@@ -23,8 +23,8 @@ export interface RoundModalProps {
   onReplay?: () => void;
 }
 
-/** Round / match result, shown over the board. Dismissible so the final
- * position can be inspected; a compact bar keeps the primary action reachable. */
+/** Round / match result dialog. Dismissible so the final position can be
+ * inspected; a compact bar under the board keeps the primary action reachable. */
 export function RoundModal({ state, blackName, goldName, onStartNextRound, waitingText, onRestart, onReplay }: RoundModalProps) {
   const over = state.status === GameStatus.ROUND_OVER || state.status === GameStatus.MATCH_OVER;
   const key = `${state.currentRound}-${state.status}`;
@@ -58,7 +58,7 @@ export function RoundModal({ state, blackName, goldName, onStartNextRound, waiti
 
   if (dismissed) {
     return (
-      <div className="glass absolute inset-x-4 bottom-4 z-40 flex animate-pop-in items-center justify-between gap-3 px-4 py-3" data-testid="round-bar">
+      <div className="glass mt-2.5 flex w-full animate-pop-in items-center justify-between gap-3 px-4 py-3" data-testid="round-bar">
         <span className="min-w-0 truncate text-sm font-semibold text-white">
           {winnerName} {matchOver ? 'wins the match' : `takes round ${state.currentRound}`}
         </span>
@@ -75,7 +75,7 @@ export function RoundModal({ state, blackName, goldName, onStartNextRound, waiti
   }
 
   return (
-    <Modal inset label={matchOver ? 'Match over' : 'Round over'} onClose={() => setDismissedKey(key)}>
+    <Modal label={matchOver ? 'Match over' : 'Round over'} onClose={() => setDismissedKey(key)}>
       <div className="flex flex-col items-center gap-4 text-center" data-testid="round-modal">
         <span className="grid h-14 w-14 place-items-center rounded-full bg-accent/15 text-accent ring-1 ring-accent/40">
           <Icon name="trophy" size={28} />

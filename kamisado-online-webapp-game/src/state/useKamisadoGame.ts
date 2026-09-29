@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Color,
   Coordinate,
   GameState,
   GameStatus,
@@ -55,7 +54,6 @@ export interface KamisadoGameApi {
   lastEvent: 'PASS' | 'DEADLOCK' | 'ROUND_OVER' | 'MATCH_OVER' | null;
   isHumanTurn: boolean;
   selectSquare: (coord: Coordinate) => void;
-  clearSelection: () => void;
   /** Starts the next round - every tower returns to its own colour square. */
   startNextRound: () => void;
   restart: () => void;
@@ -88,7 +86,8 @@ export function useKamisadoGame(options: UseKamisadoGameOptions): KamisadoGameAp
   const applyTimeout = useCallback((timedOut: NonNullable<ReturnType<typeof checkTimeout>>) => {
     if (!timedOut.state) return false;
     setState(timedOut.state);
-    setLastEvent('ROUND_OVER');
+    setSelected(null);
+    setLastEvent(timedOut.state.status === GameStatus.MATCH_OVER ? 'MATCH_OVER' : 'ROUND_OVER');
     playVictory();
     return true;
   }, []);
@@ -185,19 +184,19 @@ export function useKamisadoGame(options: UseKamisadoGameOptions): KamisadoGameAp
     [state, selected, legalDestinations, commitMove, options],
   );
 
-  const clearSelection = useCallback(() => setSelected(null), []);
-
-  const startNextRound = useCallback(
-    () => {
-      const next = reseatForNextRound(state);
-      setState(next);
-      setRoundStartState(next);
-      setHistory([]);
-      setLastEvent(null);
-      moveCounter.current = 1;
-    },
-    [state],
-  );
+  const startNextRound = useCallback(() => {
+    // Ignore double-clicks: only a finished (non-final) round can be restarted.
+    if (state.status !== GameStatus.ROUND_OVER) return;
+    // Timed games: every round gets a fresh clock, so a player who flagged
+    // doesn't open the next round with 0:00 and lose it instantly.
+    const next = reseatForNextRound(state, options.timeControl?.initialMs);
+    setState(next);
+    setRoundStartState(next);
+    setHistory([]);
+    setSelected(null);
+    setLastEvent(null);
+    moveCounter.current = 1;
+  }, [state, options.timeControl]);
 
   // Autonomous bot turns.
   useEffect(() => {
@@ -237,12 +236,7 @@ export function useKamisadoGame(options: UseKamisadoGameOptions): KamisadoGameAp
     lastEvent,
     isHumanTurn,
     selectSquare,
-    clearSelection,
     startNextRound,
     restart,
   };
-}
-
-export function requiredColorLabel(color: Color | null): string {
-  return color ?? 'Any tower';
 }

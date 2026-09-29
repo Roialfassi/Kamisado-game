@@ -45,12 +45,10 @@ export default {
           from: { opacity: '0', transform: 'translateY(8px) scale(0.97)' },
           to: { opacity: '1', transform: 'translateY(0) scale(1)' },
         },
-        'slide-up': { from: { transform: 'translateY(100%)' }, to: { transform: 'translateY(0)' } },
       },
       animation: {
         'fade-in': 'fade-in 180ms ease-out both',
         'pop-in': 'pop-in 220ms cubic-bezier(0.2, 0.8, 0.2, 1) both',
-        'slide-up': 'slide-up 260ms cubic-bezier(0.2, 0.8, 0.2, 1) both',
       },
     },
   },

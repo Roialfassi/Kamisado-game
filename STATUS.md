@@ -15,9 +15,10 @@ mirrored line-for-line) both implement `IKamisadoEngine` and pass all 25 cases
 from `docs/TEST_SUITE_AND_EDGE_CASES.md`:
 
 ```
-npm test -w @kamisado/engine                       # 35 tests: the 25 spec cases + 5 clock + 5 next-round
-cd kamisado-android-app && ./gradlew :engine:test  # 27 tests: the 25 spec cases + 2 next-round
-cd kamisado-online-webapp-game && npx vitest run   # 12 tests: puzzle catalogue + must-move helpers
+npm test -w @kamisado/engine                       # 40 tests: the 25 spec cases + clocks + next-round + non-baseline scoring
+cd kamisado-android-app && ./gradlew :engine:test  # 30 tests: the 25 spec cases + next-round + deadlock scoring
+npm test -w kamisado-online-webapp-game            # 12 tests: puzzle catalogue + must-move helpers
+npm test -w @kamisado/room-server                  # 6 tests: resignation + next-round validation
 ```
 
 A fresh, independent adversarial review (a separate agent with no builder
@@ -40,7 +41,9 @@ Two ambiguous corners of the spec required a judgment call, both reviewed and
 endorsed by the independent pass: round wins always award a flat +1 point
 regardless of the winning tower's Sumo rank (section 5.2's "worth 1/3/7/15
 pts" language reads as flavor text paralleling the match-format thresholds,
-not a scoring instruction - Test 15 is consistent with this reading), and the
+not a scoring instruction - Test 15 is consistent with this reading; rounds
+won by deadlock, timeout or resignation likewise score a flat +1 with no Sumo
+promotion, via `awardRoundWin`, so matches can end that way), and the
 official `regroupForNextRound` tower-reseating order (Rules F1-F4, which the
 spec doesn't fully pin down) sorts by end-of-round advancement then column.
 
@@ -163,9 +166,10 @@ Dragon Vault cosmetic system, and the Play Store release (Phases 3-5).
 
 ```bash
 npm install                                   # from repo root (npm workspaces)
-npm run test:engine                           # 35/35 TS engine tests
+npm run test:engine                           # 40/40 TS engine tests
 npm test -w kamisado-online-webapp-game        # 12/12 web unit tests (vitest)
+npm test -w @kamisado/room-server              # 6/6 room-server tests (vitest)
 npm run dev:web                                # web app on :5173
 npm run dev:room-server                        # room server on :8787
-cd kamisado-android-app && ./gradlew :engine:test   # 27/27 Kotlin engine tests
+cd kamisado-android-app && ./gradlew :engine:test   # 30/30 Kotlin engine tests
 ```

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Coordinate, GameState, Move, PlayerSide, findTowerAt, getLegalMoves } from '@kamisado/engine';
-import type { ClientMessage, EmoteBroadcastMessage, EmoteId, PreferredSide, RoomStateMessage, RoundFinishedMessage, ServerMessage } from '@kamisado/protocol';
+import type { ClientMessage, EmoteBroadcastMessage, EmoteId, PreferredSide, RoomStateMessage, ServerMessage } from '@kamisado/protocol';
 import { formatMove } from '../lib/notation.js';
 import { resolveSelection } from '../lib/mustMove.js';
 import type { HistoryEntry } from '../state/useKamisadoGame.js';
@@ -27,7 +27,6 @@ export type ConnectionStatus = 'CONNECTING' | 'OPEN' | 'CLOSED';
 export function useRoomConnection(roomId: string, playerName: string, preferredSide: PreferredSide) {
   const [status, setStatus] = useState<ConnectionStatus>('CONNECTING');
   const [roomState, setRoomState] = useState<RoomStateMessage | null>(null);
-  const [lastFinished, setLastFinished] = useState<RoundFinishedMessage | null>(null);
   const [lastError, setLastError] = useState<string | null>(null);
   const [explicitSelected, setSelected] = useState<Coordinate | null>(null);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
@@ -57,8 +56,10 @@ export function useRoomConnection(roomId: string, playerName: string, preferredS
           lastSeenRound.current = msg.gameState.currentRound;
           moveCounter.current = 1;
           setHistory([]);
+          setSelected(null);
           setRoundStartState(msg.gameState);
         }
+        setLastError(null);
         setRoomState(msg);
       } else if (msg.type === 'MOVE_BROADCAST') {
         // Compute the notation and advance the counter here, in the plain
@@ -74,13 +75,17 @@ export function useRoomConnection(roomId: string, playerName: string, preferredS
         setRoomState((prev) => (prev ? { ...prev, gameState: msg.gameState } : prev));
         setHistory((h) => [...h, entry]);
         setSelected(null);
+        setLastError(null);
       } else if (msg.type === 'ROUND_FINISHED') {
-        setLastFinished(msg);
+        setSelected(null);
+        setLastError(null);
         setRoomState((prev) => (prev ? { ...prev, gameState: msg.gameState } : prev));
       } else if (msg.type === 'EMOTE_BROADCAST') {
         setLastEmote({ ...msg, key: Date.now() });
       } else if (msg.type === 'ERROR') {
         setLastError(msg.message);
+        // Transient (e.g. a duplicate "start next round"): don't leave it on screen.
+        window.setTimeout(() => setLastError((current) => (current === msg.message ? null : current)), 5000);
       }
     };
 
@@ -141,7 +146,6 @@ export function useRoomConnection(roomId: string, playerName: string, preferredS
   return {
     status,
     roomState,
-    lastFinished,
     lastError,
     lastEmote,
     selected,

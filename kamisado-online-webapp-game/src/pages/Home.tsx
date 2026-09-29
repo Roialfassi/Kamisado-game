@@ -122,7 +122,7 @@ export default function Home() {
               </span>
             )}
             <div className="flex items-start justify-between">
-              <span className="grid h-11 w-11 place-items-center rounded-xl bg-accent/12 text-accent ring-1 ring-accent/25 transition group-hover:bg-accent/20">
+              <span className="grid h-11 w-11 place-items-center rounded-xl bg-accent/[0.12] text-accent ring-1 ring-accent/25 transition group-hover:bg-accent/20">
                 <Icon name={card.icon} size={22} />
               </span>
               <span className="chip">{card.badge}</span>
