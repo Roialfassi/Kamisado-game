@@ -17,7 +17,8 @@ from `docs/TEST_SUITE_AND_EDGE_CASES.md`:
 ```
 npm test -w @kamisado/engine                       # 40 tests: the 25 spec cases + clocks + next-round + non-baseline scoring
 cd kamisado-android-app && ./gradlew :engine:test  # 30 tests: the 25 spec cases + next-round + deadlock scoring
-npm test -w kamisado-online-webapp-game            # 12 tests: puzzle catalogue + must-move helpers
+npm test -w @kamisado/ai                           # 15 tests: fast search core vs the reference engine + bot levels
+npm test -w kamisado-online-webapp-game            # 34 tests: puzzle catalogue, must-move, blunder guard, saved games
 npm test -w @kamisado/room-server                  # 6 tests: resignation + next-round validation
 ```
 
@@ -55,6 +56,34 @@ scores carry over and the loser of the previous round opens. The official
 `regroupForNextRound` is still implemented and tested if the rule is ever
 switched back.
 
+## AI (`packages/ai/`) - built, tested against the reference engine
+
+- `Position` is a mutable, allocation-free twin of the engine rules built for
+  search (moves, Sumo pushes, colour lock, stymie chains, deadlock
+  adjudication, Zobrist hashing). Iterative-deepening alpha-beta with a
+  transposition table, move ordering and history heuristic; about 0.5-1 M
+  nodes/s and depth 12 in ~35 ms on typical middlegames (measured with
+  `npm run bench -w @kamisado/ai`).
+- Verified by differential fuzzing against the reference engine (legal moves,
+  and for every move the resulting state, pass chains, deadlocks, pushes and
+  incremental hashes - including push-heavy and deadlock-heavy positions), and
+  by checking that its forced-win/forced-loss detection equals brute force on
+  300 random positions.
+- **Strength is graded mostly by evaluation noise, not depth**: measured
+  bot-vs-bot, extra depth beyond ~4-6 plies adds surprisingly little because a
+  Kamisado round is short and largely a tempo race (depth 8 vs depth 2 only
+  57%, and evaluation weights barely matter). Student (depth 2, heavy noise),
+  Ronin (4, medium), Samurai (6, light), Dragon Master (up to 20 within 1.5 s,
+  no noise); noise never blurs a forced win/loss inside the horizon.
+  `npm run tournament -w @kamisado/ai` (300 games per step from openings that
+  are still undecided at 10 plies, Dragon depth-capped at 12 for
+  reproducibility) gave: Student over Apprentice 99%, Ronin over Student 76%,
+  Samurai over Ronin 67%, Dragon Master over Samurai 60% (95% lower bound 55%).
+  The top step is small by nature; Dragon Master is essentially a flawless
+  tactician, not a stronger "strategist".
+- Not done: a Kotlin port of this search for the Android app (which still uses
+  its own simple on-device bot).
+
 ## Web app (`kamisado-online-webapp-game/`) - built and verified in a real browser
 
 - Vite + React + TypeScript + Tailwind, consuming `@kamisado/engine` directly.
@@ -76,8 +105,15 @@ switched back.
   board sized by one CSS variable so it fits the viewport (no horizontal
   overflow at 390px on any page), towers that slide between squares
   (`prefers-reduced-motion` disables it), contrast-aware legal-move dots.
-- An AI Dojo with three tiers (Apprentice: biased-random; Ronin: 1-ply greedy;
-  Dragon Master: depth-3 alpha-beta minimax).
+- An AI Dojo with **five levels** (Apprentice, Student, Ronin, Samurai, Dragon
+  Master), powered by `packages/ai` and run in a Web Worker so the page never
+  freezes (see "AI" below). Vs-bot games also have **Undo** (takes back your
+  move and the bot's reply; untimed games), a **Hint** button (best move drawn
+  in teal), an optional **Blunder guard** (asks before a move that lets the bot
+  win on its very next turn), **Rematch / Rematch with swapped sides**, and
+  **autosave/resume** of unfinished untimed games (stored as the round-start
+  position plus moves and replayed through the engine on load, so a corrupt
+  save is rejected).
 - A 5-lesson interactive Academy, each lesson backed by a real engine-computed
   board position (not hand-drawn illustrations).
 - Real-time multiplayer: a WebSocket room server (`packages/room-server/`,
@@ -90,8 +126,8 @@ switched back.
 - Real time controls (Blitz 1+2 / Rapid 5+5 / Classical 15+0, or untimed),
   with a live per-player countdown, Fischer increments, and server/engine-
   enforced timeout adjudication (`tickClock` / `checkTimeout` in the engine).
-- A Daily Puzzle mode: a small hand-built, engine-verified mate-in-X catalog
-  (7 puzzles: mate in 1-3, rotating by calendar day; `puzzles.test.ts`
+- A Daily Puzzle mode: an engine-verified mate-in-X catalog
+  (23 puzzles: mate in 1-3, rotating by calendar day; `puzzles.test.ts`
   proves each is a unique forced win in exactly N moves with Gold's replies
   forced, using the solver in `src/puzzles/solver.ts`) with move validation, a
   "Gold's reply is forced" auto-play for the opponent's turns, and a
@@ -131,11 +167,14 @@ on every forced turn; round 2's arrangement compared identical to round 1's;
 the replay viewer and round modal; a three-browser online room (Black, Gold,
 spectator) including a server-side rejection of a spectator's next-round
 request; vs-AI with a Blitz clock; settings persistence; solving today's
-puzzle through the UI; and no horizontal overflow at 390px. Those scripts live
+puzzle through the UI; a vs-Dragon-Master game (reply in ~1.5 s while the page
+kept rendering at 30+ fps), hint, two undos back to the opening position,
+reload + resume, the blunder guard's cancel / play-anyway, and a finished match
+followed by "rematch, swap sides"; and no horizontal overflow at 390px. Those scripts live
 outside the repo (scratch directory) - only the vitest/JUnit suites above are
 committed.
 
-**Not built**: ranked ELO matchmaking/ladder, account systems, "play from
+**Not built**: ranked ELO matchmaking/ladder, account systems, a 50+ stage puzzle campaign (23 puzzles exist), post-game blunder analysis, PWA/offline install, "play from
 this position against a bot" branching in the replay viewer, friends lists,
 tournaments, spectator theater, streamer overlays, and the other ~47 puzzle
 stages a real "50+ stage" catalog would need (Phases 3-5 of `PLAN.md`).
@@ -167,7 +206,8 @@ Dragon Vault cosmetic system, and the Play Store release (Phases 3-5).
 ```bash
 npm install                                   # from repo root (npm workspaces)
 npm run test:engine                           # 40/40 TS engine tests
-npm test -w kamisado-online-webapp-game        # 12/12 web unit tests (vitest)
+npm test -w @kamisado/ai                       # 15/15 AI tests (vitest)
+npm test -w kamisado-online-webapp-game        # 34/34 web unit tests (vitest)
 npm test -w @kamisado/room-server              # 6/6 room-server tests (vitest)
 npm run dev:web                                # web app on :5173
 npm run dev:room-server                        # room server on :8787

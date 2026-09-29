@@ -2,14 +2,15 @@ import { GameState, GameStatus } from '@kamisado/engine';
 import { COLOR_HEX, COLOR_KANJI, COLOR_LABEL, getContrastTextColor } from '../lib/theme.js';
 
 /** The colour lock, in words: whose turn it is and which tower they must move. */
-export function TurnBanner({ state, activeName }: { state: GameState; activeName: string }) {
+export function TurnBanner({ state, activeName, thinking = false }: { state: GameState; activeName: string; thinking?: boolean }) {
   if (state.status !== GameStatus.IN_PROGRESS) return null;
   const required = state.requiredColor;
 
   return (
     <div className="glass flex w-full items-center justify-between gap-3 px-3.5 py-2" data-testid="turn-banner">
-      <span className="min-w-0 truncate text-sm text-stone-200">
-        <span className="font-semibold text-white">{activeName}</span> to move
+      <span className="min-w-0 truncate text-sm text-stone-200" data-testid={thinking ? 'bot-thinking' : undefined}>
+        <span className="font-semibold text-white">{activeName}</span> {thinking ? 'is thinking' : 'to move'}
+        {thinking && <span className="ml-0.5 inline-flex gap-0.5 align-middle" aria-hidden="true">{[0, 1, 2].map((i) => <span key={i} className="h-1 w-1 animate-pulse rounded-full bg-accent" style={{ animationDelay: `${i * 160}ms` }} />)}</span>}
       </span>
       {required ? (
         <span className="flex shrink-0 items-center gap-2" data-testid="required-color" data-color={required}>

@@ -18,14 +18,16 @@ export interface RoundModalProps {
   onStartNextRound?: () => void;
   /** Shown instead of the button when the viewer can't start the round. */
   waitingText?: string;
-  /** Match over: play again. */
+  /** Match over: play again with the same setup. */
   onRestart?: () => void;
+  /** Match over (vs the bot): play again with the colours swapped. */
+  onSwapSides?: () => void;
   onReplay?: () => void;
 }
 
 /** Round / match result dialog. Dismissible so the final position can be
  * inspected; a compact bar under the board keeps the primary action reachable. */
-export function RoundModal({ state, blackName, goldName, onStartNextRound, waitingText, onRestart, onReplay }: RoundModalProps) {
+export function RoundModal({ state, blackName, goldName, onStartNextRound, waitingText, onRestart, onSwapSides, onReplay }: RoundModalProps) {
   const over = state.status === GameStatus.ROUND_OVER || state.status === GameStatus.MATCH_OVER;
   const key = `${state.currentRound}-${state.status}`;
   const [dismissedKey, setDismissedKey] = useState<string | null>(null);
@@ -44,9 +46,16 @@ export function RoundModal({ state, blackName, goldName, onStartNextRound, waiti
 
   const primary = matchOver ? (
     onRestart && (
-      <button className="btn btn-primary w-full" onClick={onRestart} data-testid="new-match">
-        <Icon name="refresh" /> Play again
-      </button>
+      <>
+        <button className="btn btn-primary w-full" onClick={onRestart} data-testid="new-match">
+          <Icon name="refresh" /> Rematch
+        </button>
+        {onSwapSides && (
+          <button className="btn btn-ghost w-full" onClick={onSwapSides} data-testid="swap-sides">
+            <Icon name="swap" /> Rematch, swap sides
+          </button>
+        )}
+      </>
     )
   ) : onStartNextRound ? (
     <button className="btn btn-primary w-full" onClick={onStartNextRound} data-testid="start-next-round">

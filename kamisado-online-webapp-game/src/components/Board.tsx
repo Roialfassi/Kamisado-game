@@ -15,6 +15,8 @@ export interface BoardProps {
   /** The last physical move, tinted on the board. Defaults to `state.lastMove`
    * when that is a real move (passes are not shown). */
   lastMove?: Move | null;
+  /** A suggested move (from the hint button), drawn in teal. */
+  hint?: Move | null;
   /** Overrides the responsive default board width (any CSS length). */
   size?: string;
 }
@@ -41,6 +43,7 @@ export function Board({
   interactive,
   onSquareClick,
   lastMove,
+  hint,
   size,
 }: BoardProps) {
   const { rows, cols } = visualOrder(perspective);
@@ -109,6 +112,8 @@ export function Board({
                 const isPickable = !!tower && pickableIds.has(tower.id);
                 const isTrailFrom = trail?.from.row === row && trail.from.col === col;
                 const isTrailTo = trail?.to.row === row && trail.to.col === col;
+                const isHintFrom = hint?.from.row === row && hint.from.col === col;
+                const isHintTo = hint?.to.row === row && hint.to.col === col;
                 const dark = isDarkSquare(color);
 
                 return (
@@ -195,6 +200,8 @@ export function Board({
                       </span>
                     )}
 
+                    {isHintFrom && <span className="hint-from" data-testid="hint-from" />}
+                    {isHintTo && <span className="hint-to" data-testid="hint-to" />}
                     {isMustMove && <span className="must-move-halo" data-testid="must-move-halo" />}
                     {isPickable && <span className="pickable-ring" data-testid="pickable-ring" />}
                   </button>

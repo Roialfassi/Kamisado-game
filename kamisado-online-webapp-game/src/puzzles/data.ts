@@ -38,7 +38,7 @@ function position(black: Placement[], gold: Placement[], required: Color): () =>
  * rules engine: Black has a forced win in exactly `mateIn` of its own moves
  * (no shorter win exists), the winning first move is unique, and Gold's
  * replies are forced (fully stymied, or exactly one legal move) at every step.
- * This is a small catalogue, not the 50+ stage set from PLAN.md.
+ * This is a modest catalogue (mate in 1-3), not the 50+ stage set from PLAN.md.
  */
 export const PUZZLES: Puzzle[] = [
   {
@@ -109,6 +109,118 @@ export const PUZZLES: Puzzle[] = [
       [[Color.BLUE, 1, 7], [Color.PINK, 1, 0]],
       Color.PINK,
     ),
+  },
+  {
+    id: 'pincer',
+    title: 'Pincer',
+    description: 'Black to move and win in two. Every move you make chooses which Gold tower must reply - make it one that cannot stop you.',
+    mateIn: 2,
+    build: position([[Color.PINK, 2, 6], [Color.BROWN, 5, 0]], [[Color.RED, 4, 5], [Color.PURPLE, 1, 7], [Color.PINK, 5, 4]], Color.PINK),
+  },
+  {
+    id: 'long-reach',
+    title: 'Long Reach',
+    description: 'Black to move and win in two. Every move you make chooses which Gold tower must reply - make it one that cannot stop you.',
+    mateIn: 2,
+    build: position([[Color.PINK, 1, 5], [Color.BROWN, 2, 4], [Color.RED, 6, 7], [Color.ORANGE, 4, 3]], [[Color.ORANGE, 3, 0], [Color.YELLOW, 3, 2]], Color.PINK),
+  },
+  {
+    id: 'short-fuse',
+    title: 'Short Fuse',
+    description: 'Black to move and win in two. Every move you make chooses which Gold tower must reply - make it one that cannot stop you.',
+    mateIn: 2,
+    build: position([[Color.ORANGE, 2, 3], [Color.YELLOW, 5, 2]], [[Color.RED, 1, 0], [Color.PURPLE, 2, 1], [Color.YELLOW, 1, 6]], Color.ORANGE),
+  },
+  {
+    id: 'the-corner',
+    title: 'The Corner',
+    description: 'Black to move and win in two. Every move you make chooses which Gold tower must reply - make it one that cannot stop you.',
+    mateIn: 2,
+    build: position([[Color.GREEN, 1, 7], [Color.ORANGE, 6, 2]], [[Color.ORANGE, 2, 0], [Color.RED, 1, 4]], Color.GREEN),
+  },
+  {
+    id: 'bait',
+    title: 'Bait',
+    description: 'Black to move and win in two. Every move you make chooses which Gold tower must reply - make it one that cannot stop you.',
+    mateIn: 2,
+    build: position([[Color.PURPLE, 2, 4], [Color.PINK, 4, 1]], [[Color.ORANGE, 1, 0], [Color.BROWN, 1, 1]], Color.PURPLE),
+  },
+  {
+    id: 'one-step-ahead',
+    title: 'One Step Ahead',
+    description: 'Black to move and win in two. Every move you make chooses which Gold tower must reply - make it one that cannot stop you.',
+    mateIn: 2,
+    build: position([[Color.BROWN, 4, 4], [Color.BLUE, 1, 6]], [[Color.PURPLE, 2, 7], [Color.GREEN, 4, 5]], Color.BROWN),
+  },
+  {
+    id: 'the-detour',
+    title: 'The Detour',
+    description: 'Black to move and win in two. Every move you make chooses which Gold tower must reply - make it one that cannot stop you.',
+    mateIn: 2,
+    build: position([[Color.BROWN, 2, 0], [Color.ORANGE, 4, 7], [Color.PURPLE, 5, 7]], [[Color.YELLOW, 5, 2], [Color.PINK, 6, 7], [Color.GREEN, 1, 2]], Color.BROWN),
+  },
+  {
+    id: 'second-wind',
+    title: 'Second Wind',
+    description: 'Black to move and win in two. Every move you make chooses which Gold tower must reply - make it one that cannot stop you.',
+    mateIn: 2,
+    build: position([[Color.BLUE, 3, 3], [Color.GREEN, 5, 7]], [[Color.BLUE, 5, 1], [Color.GREEN, 1, 0], [Color.RED, 6, 2]], Color.BLUE),
+  },
+  {
+    id: 'crossfire',
+    title: 'Crossfire',
+    description: 'Black to move and win in three. Every move you make chooses which Gold tower must reply - make it one that cannot stop you.',
+    mateIn: 3,
+    build: position([[Color.YELLOW, 3, 5], [Color.PURPLE, 5, 1]], [[Color.ORANGE, 3, 7], [Color.RED, 1, 7], [Color.GREEN, 6, 5]], Color.YELLOW),
+  },
+  {
+    id: 'edge-of-the-board',
+    title: 'Edge of the Board',
+    description: 'Black to move and win in three. Every move you make chooses which Gold tower must reply - make it one that cannot stop you.',
+    mateIn: 3,
+    build: position([[Color.BLUE, 1, 7], [Color.BROWN, 6, 1]], [[Color.ORANGE, 1, 6], [Color.PURPLE, 1, 4]], Color.BLUE),
+  },
+  {
+    id: 'three-moves-deep',
+    title: 'Three Moves Deep',
+    description: 'Black to move and win in three. Every move you make chooses which Gold tower must reply - make it one that cannot stop you.',
+    mateIn: 3,
+    build: position([[Color.PURPLE, 2, 7], [Color.GREEN, 6, 0], [Color.BROWN, 3, 2]], [[Color.BLUE, 4, 1], [Color.YELLOW, 1, 3], [Color.ORANGE, 3, 1]], Color.PURPLE),
+  },
+  {
+    id: 'the-long-way-round',
+    title: 'The Long Way Round',
+    description: 'Black to move and win in three. Every move you make chooses which Gold tower must reply - make it one that cannot stop you.',
+    mateIn: 3,
+    build: position([[Color.YELLOW, 2, 7], [Color.BROWN, 3, 0]], [[Color.GREEN, 1, 0], [Color.BLUE, 1, 7]], Color.YELLOW),
+  },
+  {
+    id: 'slow-burn',
+    title: 'Slow Burn',
+    description: 'Black to move and win in three. Every move you make chooses which Gold tower must reply - make it one that cannot stop you.',
+    mateIn: 3,
+    build: position([[Color.BROWN, 1, 2], [Color.PURPLE, 5, 6]], [[Color.GREEN, 1, 7], [Color.PINK, 2, 6], [Color.ORANGE, 6, 1]], Color.BROWN),
+  },
+  {
+    id: 'crowded-house',
+    title: 'Crowded House',
+    description: 'Black to move and win in three. Every move you make chooses which Gold tower must reply - make it one that cannot stop you.',
+    mateIn: 3,
+    build: position([[Color.PURPLE, 2, 3], [Color.RED, 2, 5], [Color.YELLOW, 5, 0]], [[Color.PINK, 6, 2], [Color.BLUE, 6, 3], [Color.YELLOW, 1, 7]], Color.PURPLE),
+  },
+  {
+    id: 'far-corner',
+    title: 'Far Corner',
+    description: 'Black to move and win in three. Every move you make chooses which Gold tower must reply - make it one that cannot stop you.',
+    mateIn: 3,
+    build: position([[Color.PURPLE, 1, 6], [Color.BROWN, 6, 5]], [[Color.BLUE, 5, 3], [Color.PURPLE, 6, 0]], Color.PURPLE),
+  },
+  {
+    id: 'patience',
+    title: 'Patience',
+    description: 'Black to move and win in three. Every move you make chooses which Gold tower must reply - make it one that cannot stop you.',
+    mateIn: 3,
+    build: position([[Color.BLUE, 3, 3], [Color.BROWN, 2, 7], [Color.PURPLE, 5, 0]], [[Color.GREEN, 6, 0], [Color.PURPLE, 6, 1]], Color.BLUE),
   },
 ];
 
