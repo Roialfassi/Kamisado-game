@@ -15,8 +15,9 @@ mirrored line-for-line) both implement `IKamisadoEngine` and pass all 25 cases
 from `docs/TEST_SUITE_AND_EDGE_CASES.md`:
 
 ```
-cd packages/engine && npm test                    # 25/25 pass
-cd kamisado-android-app && ./gradlew :engine:test  # 25/25 pass
+npm test -w @kamisado/engine                       # 35 tests: the 25 spec cases + 5 clock + 5 next-round
+cd kamisado-android-app && ./gradlew :engine:test  # 27 tests: the 25 spec cases + 2 next-round
+cd kamisado-online-webapp-game && npx vitest run   # 12 tests: puzzle catalogue + must-move helpers
 ```
 
 A fresh, independent adversarial review (a separate agent with no builder
@@ -27,21 +28,29 @@ targeted correctness checks (diagonal-push rejection, S3 turn-sequencing, S6/S8
 immunity in multi-piece chains, exact range boundaries, mandatory-move/push,
 Quadruple Sumo auto-win, and stale-position regressions).
 
-One data problem was found and fixed along the way: `docs/GAME_RULES_SPECIFICATION.md`
-section 1.3's literal board matrix has a transcription bug (column 0 has
-YELLOW twice and is missing PURPLE, which breaks the Latin-square property the
-doc itself claims). The engine uses a reconstructed board, verified
-programmatically to be a valid Latin square with exact 180-degree rotational
-symmetry and the correct (and mutually consistent) home rows from that same
-section - see the comment in `packages/engine/src/board.ts`.
+The 8x8 colour matrix in `packages/engine/src/board.ts` (and its Kotlin twin
+`Board.kt`) is the authentic Kamisado board, supplied by the project owner:
+every row and every column contains each of the eight colours exactly once,
+and the two home rows are mirror images. (`docs/GAME_RULES_SPECIFICATION.md`
+section 1.3's literal matrix had a transcription bug in two rows; the owner's
+correction supersedes it.) Every fixture in the engine tests, the Academy
+scenarios and the puzzles is verified against this board.
 
 Two ambiguous corners of the spec required a judgment call, both reviewed and
 endorsed by the independent pass: round wins always award a flat +1 point
 regardless of the winning tower's Sumo rank (section 5.2's "worth 1/3/7/15
 pts" language reads as flavor text paralleling the match-format thresholds,
 not a scoring instruction - Test 15 is consistent with this reading), and the
-`regroupForNextRound` tower-reseating order (Rules F1-F4, which the spec
-doesn't fully pin down) sorts by end-of-round advancement then column.
+official `regroupForNextRound` tower-reseating order (Rules F1-F4, which the
+spec doesn't fully pin down) sorts by end-of-round advancement then column.
+
+**House rule (owner's decision):** the shipped UIs do *not* use the official
+fill-from-left/right regroup. Every round after the first restarts with each
+tower back on the home square of its own colour - the same arrangement every
+round - via `reseatForNextRound` (TS and Kotlin, tested). Sumo ranks persist,
+scores carry over and the loser of the previous round opens. The official
+`regroupForNextRound` is still implemented and tested if the rule is ever
+switched back.
 
 ## Web app (`kamisado-online-webapp-game/`) - built and verified in a real browser
 
@@ -51,8 +60,19 @@ doesn't fully pin down) sorts by end-of-round advancement then column.
   preference), procedural WebAudio sound effects (no external audio assets,
   mute preference also persisted).
 - Local hotseat play, full match formats (Single/Standard/Long/Marathon) with
-  Sumo ring UI and push highlighting, pass/deadlock banners, and the
-  regroup-between-rounds flow.
+  Sumo ring UI and push highlighting, pass/deadlock handling, and a
+  round-over modal with a single "Start round N" action.
+- **Colour-lock feedback:** the tower the colour lock forces the active player
+  to move is auto-selected (legal moves shown without a click) and ringed with
+  a pulsing halo, in hotseat, vs-AI, online and puzzle play; on a free-choice
+  opening move every movable tower gets a dashed ring; the turn banner names
+  the forced colour. Last-move trail on the board.
+- **Modern dark-glass UI:** design tokens and primitives (glass surfaces, pill
+  buttons, segmented controls, modal, icon set), sticky header nav plus a phone
+  tab bar, a shared settings menu, player bars with score pips and clocks, a
+  board sized by one CSS variable so it fits the viewport (no horizontal
+  overflow at 390px on any page), towers that slide between squares
+  (`prefers-reduced-motion` disables it), contrast-aware legal-move dots.
 - An AI Dojo with three tiers (Apprentice: biased-random; Ronin: 1-ply greedy;
   Dragon Master: depth-3 alpha-beta minimax).
 - A 5-lesson interactive Academy, each lesson backed by a real engine-computed
@@ -68,7 +88,9 @@ doesn't fully pin down) sorts by end-of-round advancement then column.
   with a live per-player countdown, Fischer increments, and server/engine-
   enforced timeout adjudication (`tickClock` / `checkTimeout` in the engine).
 - A Daily Puzzle mode: a small hand-built, engine-verified mate-in-X catalog
-  (3 puzzles so far, rotating by calendar day) with move validation, a
+  (7 puzzles: mate in 1-3, rotating by calendar day; `puzzles.test.ts`
+  proves each is a unique forced win in exactly N moves with Gold's replies
+  forced, using the solver in `src/puzzles/solver.ts`) with move validation, a
   "Gold's reply is forced" auto-play for the opponent's turns, and a
   localStorage-backed solve streak.
 - A Replay/Analysis viewer for a just-finished round (local hotseat/AI or a
@@ -84,8 +106,8 @@ in real time with moves/color-forcing/seat assignment propagating correctly,
 a live Blitz clock counting down and correctly timing a player out after the
 real 60 seconds elapsed, a disconnect/reconnect cycle correctly cancelling a
 pending forfeiture while an unanswered one actually forfeits the round after
-the grace period, all 3 daily puzzles solving correctly (plus the wrong-move
-"try again" path), and a genuine 5-move win from the true initial position
+the grace period, the daily puzzle solving correctly (plus the wrong-move
+path), and a genuine 5-move win from the true initial position
 (found and verified directly against the engine first) replayed step-by-step
 through the viewer, confirming ply 0 is the full 16-tower starting position
 and each step matches. That process caught four real bugs (all fixed and
@@ -97,6 +119,18 @@ write) inside a `setState` functional updater or directly during render,
 instead of a plain event handler or `useEffect` - and an unhandled promise
 rejection when `navigator.clipboard.writeText` is denied permission (now a
 `copyToClipboard` helper that fails closed instead of throwing).
+
+The latest round of changes (colour-lock halo, per-round reset, UI redesign)
+was additionally verified with scripted Playwright runs against the real
+engine: a full random hotseat round where the UI's tower positions were
+compared to the engine after every ply and the forced tower was auto-selected
+on every forced turn; round 2's arrangement compared identical to round 1's;
+the replay viewer and round modal; a three-browser online room (Black, Gold,
+spectator) including a server-side rejection of a spectator's next-round
+request; vs-AI with a Blitz clock; settings persistence; solving today's
+puzzle through the UI; and no horizontal overflow at 390px. Those scripts live
+outside the repo (scratch directory) - only the vitest/JUnit suites above are
+committed.
 
 **Not built**: ranked ELO matchmaking/ladder, account systems, "play from
 this position against a bot" branching in the replay viewer, friends lists,
@@ -110,7 +144,9 @@ stages a real "50+ stage" catalog would need (Phases 3-5 of `PLAN.md`).
   feedback via a real `Vibrator`/`VibrationEffect` pattern for placement vs.
   Sumo pushes, a Tabletop-mode 180-degree flip toggle, and a lightweight
   two-tier on-device AI opponent) covering roughly the Phase 1-2 scope of
-  `PLAN.md` - **written and hand-reviewed, but not compiled**. Building any
+  `PLAN.md` - **written and hand-reviewed, but not compiled**. (Its call sites
+  were switched to the new per-round reset but that edit is likewise
+  uncompiled; its UI still predates the web app's redesign.) Building any
   Android module requires the Android Gradle Plugin and SDK artifacts from
   Google's Maven repository, which was unreachable from this project's build
   sandbox (see `kamisado-android-app/README.md` for exact repro and how to
@@ -127,8 +163,9 @@ Dragon Vault cosmetic system, and the Play Store release (Phases 3-5).
 
 ```bash
 npm install                                   # from repo root (npm workspaces)
-npm run test:engine                           # 25/25 TS engine tests
+npm run test:engine                           # 35/35 TS engine tests
+npm test -w kamisado-online-webapp-game        # 12/12 web unit tests (vitest)
 npm run dev:web                                # web app on :5173
 npm run dev:room-server                        # room server on :8787
-cd kamisado-android-app && ./gradlew :engine:test   # 25/25 Kotlin engine tests
+cd kamisado-android-app && ./gradlew :engine:test   # 27/27 Kotlin engine tests
 ```
