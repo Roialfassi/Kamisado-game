@@ -21,7 +21,7 @@ describe('bot levels', () => {
     for (const state of states) {
       const legal = refMoves(state);
       for (const level of BOT_LEVELS) {
-        const move = chooseMove(state, level, { rng, deterministicDepth: true, override: level === 'DRAGON_MASTER' ? { depth: 6 } : undefined });
+        const move = chooseMove(state, level, { rng, deterministicDepth: true, strict: true, override: level === 'DRAGON_MASTER' ? { depth: 6 } : undefined });
         expect(move, level).not.toBeNull();
         expect(legal.some((m) => m.from.row === move!.from.row && m.from.col === move!.from.col && m.to.row === move!.to.row && m.to.col === move!.to.col && m.type === move!.type)).toBe(true);
       }
@@ -31,8 +31,8 @@ describe('bot levels', () => {
   it('is reproducible for a given random seed', () => {
     const state = resolved(randomPosition(makeRng(3)))!;
     for (const level of BOT_LEVELS) {
-      const a = chooseMove(state, level, { rng: makeRng(9), deterministicDepth: true, override: { depth: Math.min(6, level === 'APPRENTICE' ? 6 : 6) } });
-      const b = chooseMove(state, level, { rng: makeRng(9), deterministicDepth: true, override: { depth: 6 } });
+      const a = chooseMove(state, level, { rng: makeRng(9), deterministicDepth: true, strict: true, override: { depth: Math.min(6, level === 'APPRENTICE' ? 6 : 6) } });
+      const b = chooseMove(state, level, { rng: makeRng(9), deterministicDepth: true, strict: true, override: { depth: 6 } });
       expect(a).toEqual(b);
     }
   });
@@ -52,7 +52,7 @@ describe('bot levels', () => {
     const rng = makeRng(1);
     for (const level of BOT_LEVELS.filter((l) => l !== 'APPRENTICE')) {
       for (let i = 0; i < 20; i++) {
-        const m = chooseMove(state, level, { rng, deterministicDepth: true, override: level === 'DRAGON_MASTER' ? { depth: 4 } : undefined })!;
+        const m = chooseMove(state, level, { rng, deterministicDepth: true, strict: true, override: level === 'DRAGON_MASTER' ? { depth: 4 } : undefined })!;
         expect(m.to.row, level).toBe(7);
       }
     }
@@ -79,7 +79,7 @@ describe('bot levels', () => {
       if (safe.length === 0 || safe.length === moves.length) continue;
       checked++;
       for (const level of ['STUDENT', 'RONIN', 'SAMURAI'] as BotLevel[]) {
-        const chosen = chooseMove(state, level, { rng, deterministicDepth: true })!;
+        const chosen = chooseMove(state, level, { rng, deterministicDepth: true, strict: true })!;
         expect(losing(chosen), `${level} blundered a loss in one`).toBe(false);
       }
     }

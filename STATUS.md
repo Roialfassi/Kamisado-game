@@ -17,8 +17,8 @@ from `docs/TEST_SUITE_AND_EDGE_CASES.md`:
 ```
 npm test -w @kamisado/engine                       # 40 tests: the 25 spec cases + clocks + next-round + non-baseline scoring
 cd kamisado-android-app && ./gradlew :engine:test  # 30 tests: the 25 spec cases + next-round + deadlock scoring
-npm test -w @kamisado/ai                           # 15 tests: fast search core vs the reference engine + bot levels
-npm test -w kamisado-online-webapp-game            # 34 tests: puzzle catalogue, must-move, blunder guard, saved games
+npm test -w @kamisado/ai                           # 16 tests: fast search core vs the reference engine + bot levels
+npm test -w kamisado-online-webapp-game            # 35 tests: puzzle catalogue, must-move, blunder guard, saved games
 npm test -w @kamisado/room-server                  # 6 tests: resignation + next-round validation
 ```
 
@@ -66,21 +66,25 @@ switched back.
   `npm run bench -w @kamisado/ai`).
 - Verified by differential fuzzing against the reference engine (legal moves,
   and for every move the resulting state, pass chains, deadlocks, pushes and
-  incremental hashes - including push-heavy and deadlock-heavy positions), and
+  incremental hashes - including push-heavy positions, 30,000 dense positions
+  that produce ~50 deadlock adjudications, and a hand-built deadlock), and
   by checking that its forced-win/forced-loss detection equals brute force on
   300 random positions.
-- **Strength is graded mostly by evaluation noise, not depth**: measured
-  bot-vs-bot, extra depth beyond ~4-6 plies adds surprisingly little because a
-  Kamisado round is short and largely a tempo race (depth 8 vs depth 2 only
-  57%, and evaluation weights barely matter). Student (depth 2, heavy noise),
-  Ronin (4, medium), Samurai (6, light), Dragon Master (up to 20 within 1.5 s,
-  no noise); noise never blurs a forced win/loss inside the horizon.
+- **Levels combine depth and evaluation noise**: Student (depth 2, heavy
+  noise), Ronin (4, medium), Samurai (6, light), Dragon Master (up to 20 within
+  1.5 s, no noise); noise never blurs a forced win/loss inside the horizon.
+  Every decision starts from a cold transposition table (an earlier version
+  shared one table between all searches, so a hint - or the other side in a
+  bot-vs-bot test - leaked deeper knowledge into weaker levels and made the
+  ladder look flatter than it is; a blind review caught this). With that fixed,
+  noise-free depth matters a lot: depth 8 beats depth 2 93%, depth 6 beats 4
+  76%, depth 12 beats 6 75%; evaluation weights matter little (variants within
+  +-4% of the default).
   `npm run tournament -w @kamisado/ai` (300 games per step from openings that
   are still undecided at 10 plies, Dragon depth-capped at 12 for
-  reproducibility) gave: Student over Apprentice 99%, Ronin over Student 76%,
-  Samurai over Ronin 67%, Dragon Master over Samurai 60% (95% lower bound 55%).
-  The top step is small by nature; Dragon Master is essentially a flawless
-  tactician, not a stronger "strategist".
+  reproducibility) gives: Student over Apprentice 97%, Ronin over Student 84%,
+  Samurai over Ronin 83%, Dragon Master over Samurai 79% (95% lower bounds
+  94/80/78/74%).
 - Not done: a Kotlin port of this search for the Android app (which still uses
   its own simple on-device bot).
 
@@ -112,8 +116,9 @@ switched back.
   in teal), an optional **Blunder guard** (asks before a move that lets the bot
   win on its very next turn), **Rematch / Rematch with swapped sides**, and
   **autosave/resume** of unfinished untimed games (stored as the round-start
-  position plus moves and replayed through the engine on load, so a corrupt
-  save is rejected).
+  position plus moves; a save is validated - setup, real board, 16 distinct
+  towers - and replayed through the engine on load, and anything that fails is
+  discarded; an error boundary shows a recovery card instead of a blank page).
 - A 5-lesson interactive Academy, each lesson backed by a real engine-computed
   board position (not hand-drawn illustrations).
 - Real-time multiplayer: a WebSocket room server (`packages/room-server/`,
@@ -174,10 +179,11 @@ followed by "rematch, swap sides"; and no horizontal overflow at 390px. Those sc
 outside the repo (scratch directory) - only the vitest/JUnit suites above are
 committed.
 
-**Not built**: ranked ELO matchmaking/ladder, account systems, a 50+ stage puzzle campaign (23 puzzles exist), post-game blunder analysis, PWA/offline install, "play from
-this position against a bot" branching in the replay viewer, friends lists,
-tournaments, spectator theater, streamer overlays, and the other ~47 puzzle
-stages a real "50+ stage" catalog would need (Phases 3-5 of `PLAN.md`).
+**Not built**: ranked ELO matchmaking/ladder, account systems, post-game
+blunder analysis, PWA/offline install, "play from this position against a bot"
+branching in the replay viewer, friends lists, tournaments, spectator theater,
+streamer overlays, and the roughly 27 further puzzle stages a real "50+ stage"
+catalog would need (23 exist; Phases 3-5 of `PLAN.md`).
 
 ## Android app (`kamisado-android-app/`) - two different verification levels
 
@@ -206,8 +212,8 @@ Dragon Vault cosmetic system, and the Play Store release (Phases 3-5).
 ```bash
 npm install                                   # from repo root (npm workspaces)
 npm run test:engine                           # 40/40 TS engine tests
-npm test -w @kamisado/ai                       # 15/15 AI tests (vitest)
-npm test -w kamisado-online-webapp-game        # 34/34 web unit tests (vitest)
+npm test -w @kamisado/ai                       # 16/16 AI tests (vitest)
+npm test -w kamisado-online-webapp-game        # 35/35 web unit tests (vitest)
 npm test -w @kamisado/room-server              # 6/6 room-server tests (vitest)
 npm run dev:web                                # web app on :5173
 npm run dev:room-server                        # room server on :8787

@@ -1,26 +1,11 @@
 import { GameState, Move, getLegalMoves, ALL_COLORS } from '@kamisado/engine';
 import { EvalWeights, MATE_BOUND } from './eval.js';
 import { Position } from './position.js';
-import { findBestMove, scoreRootMoves } from './search.js';
+import { clearTranspositionTable, findBestMove, scoreRootMoves } from './search.js';
 
-export type BotLevel = 'APPRENTICE' | 'STUDENT' | 'RONIN' | 'SAMURAI' | 'DRAGON_MASTER';
-
-export const BOT_LEVELS: BotLevel[] = ['APPRENTICE', 'STUDENT', 'RONIN', 'SAMURAI', 'DRAGON_MASTER'];
-
-export interface LevelInfo {
-  label: string;
-  blurb: string;
-  /** 1-5, for the level badge. */
-  stars: number;
-}
-
-export const LEVEL_INFO: Record<BotLevel, LevelInfo> = {
-  APPRENTICE: { label: 'Apprentice', stars: 1, blurb: 'Moves quickly and often without a plan. Perfect for learning the colour lock.' },
-  STUDENT: { label: 'Student', stars: 2, blurb: 'Grabs a win when it sees one and avoids handing you one, but does not plan ahead.' },
-  RONIN: { label: 'Ronin', stars: 3, blurb: 'Thinks a couple of moves ahead. Makes the occasional human slip.' },
-  SAMURAI: { label: 'Samurai', stars: 4, blurb: 'Reads the position several moves deep and rarely errs. Expect real pressure.' },
-  DRAGON_MASTER: { label: 'Dragon Master', stars: 5, blurb: 'Searches the game far ahead. Every forced sequence is found.' },
-};
+export { BOT_LEVELS, LEVEL_INFO } from './levelInfo.js';
+export type { BotLevel, LevelInfo } from './levelInfo.js';
+import type { BotLevel } from './levelInfo.js';
 
 export interface LevelConfig {
   /** Search depth in physical moves (plies). */
@@ -50,6 +35,8 @@ export interface ChooseOptions {
   override?: Partial<LevelConfig>;
   /** Random source in [0,1). Defaults to Math.random. */
   rng?: () => number;
+  /** Throw instead of falling back if the search's move cannot be matched to an engine move (tests). */
+  strict?: boolean;
   /** Depth-limited only (ignore the wall-clock budget) - reproducible, used by tests and the tournament. */
   deterministicDepth?: boolean;
 }
@@ -87,6 +74,9 @@ export function chooseMove(state: GameState, level: BotLevel, opts: ChooseOption
   if (level === 'APPRENTICE') return pickApprentice(state, moves, rng);
 
   const cfg = { ...CONFIG[level], ...opts.override };
+  // every decision starts from a cold table: a hint (or another level) that searched deeper must not
+  // leak its knowledge into this level's move, and results stay reproducible
+  clearTranspositionTable();
   const pos = Position.fromState(state);
   let encoded: number;
   if (cfg.noise > 0) {
@@ -113,13 +103,19 @@ export function chooseMove(state: GameState, level: BotLevel, opts: ChooseOption
     });
     encoded = result.move;
   }
-  return pos.toEngineMove(encoded, moves) ?? moves[0]!;
+  const matched = pos.toEngineMove(encoded, moves);
+  if (!matched) {
+    if (opts.strict) throw new Error(`search move ${encoded} is not a legal engine move`);
+    return moves[0]!;
+  }
+  return matched;
 }
 
 /** Best move and score for the side to move (used for hints and analysis). */
 export function analyze(state: GameState, opts: { maxDepth?: number; timeMs?: number } = {}): { move: Move | null; score: number; depth: number } {
   const moves = legalMoves(state);
   if (moves.length === 0) return { move: null, score: 0, depth: 0 };
+  clearTranspositionTable();
   const pos = Position.fromState(state);
   const r = findBestMove(pos, { maxDepth: opts.maxDepth ?? 12, timeMs: opts.timeMs ?? 400 });
   return { move: pos.toEngineMove(r.move, moves) ?? moves[0]!, score: r.score, depth: r.depth };

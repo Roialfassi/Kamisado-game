@@ -64,4 +64,26 @@ describe('saved game', () => {
     clearSavedGame();
     expect(loadSavedGame()).toBeNull();
   });
+
+  it('rejects (and clears) saves with a bad setup, board or tower layout', () => {
+    const { start, history } = playSome(2);
+    const good = { v: 1, savedAt: 0, setup, roundStart: start, moves: history.map((h) => h.move) };
+    const bad: unknown[] = [
+      { ...good, setup: { ...setup, gold: 'FOO' } },
+      { ...good, setup: { ...setup, format: 'ENDLESS' } },
+      { ...good, setup: { ...setup, black: 'RONIN', gold: 'DRAGON_MASTER' } }, // no human
+      { ...good, roundStart: { status: 'IN_PROGRESS' } },
+      { ...good, roundStart: { ...start, boardLayout: start.boardLayout.map((r) => [...r].reverse()) } },
+      { ...good, roundStart: { ...start, towers: { ...start.towers, BLACK_RED: { ...start.towers.BLACK_RED!, position: { row: 0, col: 0 } } } } }, // two towers on one square
+      { ...good, roundStart: { ...start, status: GameStatus.ROUND_OVER } },
+      { ...good, moves: 'nope' },
+    ];
+    for (const payload of bad) {
+      store.set('kamisado.savedGame.v1', JSON.stringify(payload));
+      expect(loadSavedGame()).toBeNull();
+      expect(store.has('kamisado.savedGame.v1')).toBe(false);
+    }
+    store.set('kamisado.savedGame.v1', JSON.stringify(good));
+    expect(loadSavedGame()).not.toBeNull();
+  });
 });

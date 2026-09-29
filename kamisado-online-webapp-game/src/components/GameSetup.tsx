@@ -51,7 +51,7 @@ export function GameSetup({ mode, onStart }: { mode: 'hotseat' | 'ai'; onStart: 
   };
 
   return (
-    <div className="glass mx-auto flex max-w-lg flex-col gap-6 p-6 sm:p-7">
+    <div className="glass mx-auto flex max-w-lg flex-col gap-6 p-4 sm:p-7">
       <Field label="Match format" hint={formatSummary(format)}>
         <Segmented
           ariaLabel="Match format"

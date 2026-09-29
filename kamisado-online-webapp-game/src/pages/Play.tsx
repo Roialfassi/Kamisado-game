@@ -43,7 +43,11 @@ export default function Play() {
     const raw = loadSavedGame();
     if (!raw) return null;
     const rebuilt = rebuildSavedGame(raw);
-    return rebuilt ? { raw, rebuilt } : null;
+    if (!rebuilt) {
+      clearSavedGame(); // moves that don't replay: unusable, so stop offering it
+      return null;
+    }
+    return { raw, rebuilt };
   }, [savedVersion]);
 
   if (!game) {

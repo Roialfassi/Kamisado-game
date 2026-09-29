@@ -153,4 +153,34 @@ describe('fast Position agrees with the reference engine', () => {
     }
     expect(deadlocks).toBeGreaterThan(0);
   });
+
+  it('deadlock adjudication matches the engine across 30,000 dense positions', () => {
+    const rng = makeRng(424242);
+    let deadlocks = 0;
+    let terminals = 0;
+    for (let i = 0; i < 30000; i++) {
+      const state = densePosition(rng);
+      const pos = Position.fromState(state);
+      const buf = new Int32Array(160);
+      const n = pos.genMoves(buf);
+      if (n === 0) continue;
+      const ref = refMoves(state);
+      for (let k = 0; k < n; k++) {
+        const m = buf[k]!;
+        const next = refStep(state, ref.find((r) => enc(r) === m)!);
+        const winner = pos.make(m);
+        if (next.status !== GameStatus.IN_PROGRESS) {
+          terminals++;
+          if (next.roundOverReason === 'DEADLOCK') deadlocks++;
+          expect(winner).toBe(sideIndex(next.roundWinner!));
+        } else {
+          expect(winner).toBe(-1);
+          expect(pos.active).toBe(sideIndex(next.activePlayer));
+        }
+        pos.unmake();
+      }
+    }
+    expect(deadlocks).toBeGreaterThan(15);
+    console.log(`  dense fuzz: terminals=${terminals} deadlocks=${deadlocks}`);
+  });
 });

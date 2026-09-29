@@ -65,14 +65,29 @@ export function RoundModal({ state, blackName, goldName, onStartNextRound, waiti
     waitingText && <p className="text-center text-sm text-stone-400">{waitingText}</p>
   );
 
+  // the compact bar keeps just the main action (swap-sides lives in the dialog)
+  const barPrimary = matchOver ? (
+    onRestart && (
+      <button className="btn btn-primary py-1.5" onClick={onRestart} data-testid="new-match">
+        <Icon name="refresh" /> Rematch
+      </button>
+    )
+  ) : onStartNextRound ? (
+    <button className="btn btn-primary py-1.5" onClick={onStartNextRound} data-testid="start-next-round">
+      <Icon name="play" /> Start round {state.currentRound + 1}
+    </button>
+  ) : (
+    waitingText && <span className="text-sm text-stone-400">{waitingText}</span>
+  );
+
   if (dismissed) {
     return (
-      <div className="glass mt-2.5 flex w-full animate-pop-in items-center justify-between gap-3 px-4 py-3" data-testid="round-bar">
+      <div className="glass mt-2.5 flex w-full animate-pop-in flex-wrap items-center justify-between gap-x-3 gap-y-2 px-4 py-3" data-testid="round-bar">
         <span className="min-w-0 truncate text-sm font-semibold text-white">
           {winnerName} {matchOver ? 'wins the match' : `takes round ${state.currentRound}`}
         </span>
-        <span className="flex shrink-0 items-center gap-2">
-          {primary}
+        <span className="flex flex-wrap items-center gap-2">
+          {barPrimary}
           {onReplay && (
             <button className="icon-btn" onClick={onReplay} title="View replay" aria-label="View replay" data-testid="view-replay">
               <Icon name="list" />

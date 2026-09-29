@@ -90,7 +90,7 @@ body {
     @apply inline-flex w-full gap-1 rounded-full border border-white/10 bg-black/30 p-1;
   }
   .seg-btn {
-    @apply flex-1 rounded-full px-3 py-1.5 text-sm font-semibold text-stone-300 transition hover:text-white;
+    @apply min-w-0 flex-1 rounded-full px-1.5 py-1.5 text-[13px] font-semibold text-stone-300 transition hover:text-white sm:px-3 sm:text-sm;
   }
   .seg-btn[aria-checked='true'] {
     @apply text-[#1a1200];

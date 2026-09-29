@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  ALL_COLORS,
   Coordinate,
   GameState,
   GameStatus,
@@ -84,6 +85,20 @@ function controllerFor(state: GameState, options: UseKamisadoGameOptions): Contr
 
 const BOT_MIN_DELAY_MS = 450;
 
+function legalMovesFor(state: GameState): Move[] {
+  const colors = state.requiredColor ? [state.requiredColor] : ALL_COLORS;
+  return colors.flatMap((color) => getLegalMoves(state, color));
+}
+
+function isLegalFor(state: GameState, move: Move): boolean {
+  return legalMovesFor(state).some((m) => m.type === move.type && m.from.row === move.from.row && m.from.col === move.from.col && m.to.row === move.to.row && m.to.col === move.to.col);
+}
+
+function randomLegalMove(state: GameState): Move | null {
+  const moves = legalMovesFor(state);
+  return moves.length ? moves[Math.floor(Math.random() * moves.length)]! : null;
+}
+
 export function useKamisadoGame(options: UseKamisadoGameOptions, resume?: RebuiltGame | null): KamisadoGameApi {
   const [state, setState] = useState<GameState>(() => resume?.state ?? createGame(options.format, options.timeControl?.initialMs ?? 0));
   const [roundStartState, setRoundStartState] = useState<GameState>(() => resume?.roundStartState ?? state);
@@ -96,6 +111,9 @@ export function useKamisadoGame(options: UseKamisadoGameOptions, resume?: Rebuil
   const [hint, setHint] = useState<Move | null>(null);
   const [hintBusy, setHintBusy] = useState(false);
   const [pendingMove, setPendingMove] = useState<Move | null>(null);
+  // Bumped on every real change of position (move, undo, next round, restart, timeout) so a
+  // position key can never repeat - a late hint or bot answer can't be applied to a different position.
+  const [revision, setRevision] = useState(0);
   const moveCounter = useRef((resume?.history.length ?? 0) + 1);
 
   const bothHuman = options.black === 'HUMAN' && options.gold === 'HUMAN';
@@ -105,7 +123,7 @@ export function useKamisadoGame(options: UseKamisadoGameOptions, resume?: Rebuil
   );
 
   /** Everything that changes when the *position* changes (but not when only the clocks tick). */
-  const positionKey = `${state.currentRound}|${history.length}|${state.status}|${state.activePlayer}|${state.requiredColor}`;
+  const positionKey = `${revision}|${state.currentRound}|${history.length}|${state.status}|${state.activePlayer}|${state.requiredColor}`;
 
   const clearTransient = useCallback(() => {
     setSelected(null);
@@ -120,6 +138,7 @@ export function useKamisadoGame(options: UseKamisadoGameOptions, resume?: Rebuil
     setHistory([]);
     clearTransient();
     setLastEvent(null);
+    setRevision((r) => r + 1);
     moveCounter.current = 1;
     clearSavedGame();
   }, [options.format, options.timeControl, clearTransient]);
@@ -128,6 +147,7 @@ export function useKamisadoGame(options: UseKamisadoGameOptions, resume?: Rebuil
     (timedOut: NonNullable<ReturnType<typeof checkTimeout>>) => {
       if (!timedOut.state) return false;
       setState(timedOut.state);
+      setRevision((r) => r + 1);
       clearTransient();
       setLastEvent(timedOut.state.status === GameStatus.MATCH_OVER ? 'MATCH_OVER' : 'ROUND_OVER');
       playVictory();
@@ -185,6 +205,7 @@ export function useKamisadoGame(options: UseKamisadoGameOptions, resume?: Rebuil
       const entries: HistoryEntry[] = [{ move, notation: formatMove(moveCounter.current++, move, next.requiredColor), stateAfter: next }];
       setHistory((h) => [...h, ...entries]);
       setState(next);
+      setRevision((r) => r + 1);
       clearTransient();
     },
     [state, options.timeControl, applyTimeout, clearTransient],
@@ -255,6 +276,7 @@ export function useKamisadoGame(options: UseKamisadoGameOptions, resume?: Rebuil
     setState(next);
     setRoundStartState(next);
     setHistory([]);
+    setRevision((r) => r + 1);
     clearTransient();
     setLastEvent(null);
     moveCounter.current = 1;
@@ -272,7 +294,8 @@ export function useKamisadoGame(options: UseKamisadoGameOptions, resume?: Rebuil
     return i - 1; // keep history[0 .. i-2]
   }, [history, humanSides, bothHuman, options.timeControl]);
 
-  const canUndo = undoTarget !== null && !botThinking;
+  // a finished match stays finished (the result dialog offers a rematch instead)
+  const canUndo = undoTarget !== null && !botThinking && state.status !== GameStatus.MATCH_OVER;
 
   const undo = useCallback(() => {
     if (undoTarget === null || botThinking) return;
@@ -280,13 +303,14 @@ export function useKamisadoGame(options: UseKamisadoGameOptions, resume?: Rebuil
     const restored = kept.length > 0 ? kept[kept.length - 1]!.stateAfter : roundStartState;
     setHistory(kept);
     setState({ ...restored, lastClockUpdate: Date.now() });
+    setRevision((r) => r + 1);
     clearTransient();
     setLastEvent(null);
     moveCounter.current = kept.length + 1;
   }, [undoTarget, botThinking, history, roundStartState, clearTransient]);
 
   // ---- hint ----------------------------------------------------------
-  const canHint = canAct && !bothHuman && !pendingMove;
+  const canHint = canAct && !bothHuman && !pendingMove && !options.timeControl;
   const requestMoveHint = useCallback(() => {
     if (!canHint || hintBusy) return;
     const askedAt = positionKey;
@@ -296,13 +320,17 @@ export function useKamisadoGame(options: UseKamisadoGameOptions, resume?: Rebuil
         // ignore the answer if the position moved on (a move, an undo...) while it was thinking
         if (positionKeyRef.current === askedAt) setHint(move);
       })
-      .finally(() => setHintBusy(false));
+      .catch(() => undefined)
+      .finally(() => {
+        if (positionKeyRef.current === askedAt) setHintBusy(false);
+      });
   }, [canHint, hintBusy, state, positionKey]);
 
   // a hint / pending confirmation is only valid for the position it was made in
   useEffect(() => {
     setHint(null);
     setPendingMove(null);
+    setHintBusy(false);
   }, [positionKey]);
 
   // ---- autonomous bot turns -----------------------------------------
@@ -326,10 +354,15 @@ export function useKamisadoGame(options: UseKamisadoGameOptions, resume?: Rebuil
         if (wait > 0) await new Promise((resolve) => window.setTimeout(resolve, wait));
         if (cancelled) return;
         setBotThinking(false);
-        if (move) commitRef.current(move);
+        // never leave the game stuck on a missing or illegal bot answer
+        const chosen = move && isLegalFor(current, move) ? move : randomLegalMove(current);
+        if (chosen) commitRef.current(chosen);
       })
       .catch(() => {
-        if (!cancelled) setBotThinking(false);
+        if (cancelled) return;
+        setBotThinking(false);
+        const fallback = randomLegalMove(current);
+        if (fallback) commitRef.current(fallback);
       });
     return () => {
       cancelled = true;
@@ -361,7 +394,10 @@ export function useKamisadoGame(options: UseKamisadoGameOptions, resume?: Rebuil
       clearSavedGame();
       return;
     }
-    if (history.length === 0 && state.currentRound === 1) return;
+    if (history.length === 0 && state.currentRound === 1) {
+      clearSavedGame(); // e.g. everything was undone: don't leave the undone moves resumable
+      return;
+    }
     saveGame({ format: options.format, black: options.black, gold: options.gold, blunderGuard: !!options.blunderGuard }, roundStartState, history);
   }, [history, roundStartState, state.status, state.currentRound, options.format, options.black, options.gold, options.blunderGuard, options.timeControl]);
 
