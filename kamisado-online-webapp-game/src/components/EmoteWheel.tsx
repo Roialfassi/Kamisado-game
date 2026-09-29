@@ -17,14 +17,14 @@ const EMOTE_TEXT: Record<EmoteId, string> = {
 
 export function EmoteWheel({ onSend }: { onSend: (emoteId: EmoteId) => void }) {
   return (
-    <div className="flex gap-1.5" data-testid="emote-wheel">
+    <div className="flex gap-1" data-testid="emote-wheel">
       {EMOTES.map((e) => (
         <button
           key={e.id}
           onClick={() => onSend(e.id)}
           title={e.label}
           aria-label={e.label}
-          className="rounded bg-black/30 px-2 py-1 text-lg hover:bg-black/50"
+          className="rounded-full border border-white/10 bg-white/[0.06] px-2.5 py-1 text-base transition hover:scale-110 hover:bg-white/[0.12] active:scale-95"
           data-testid={`emote-${e.id}`}
         >
           {e.icon}
@@ -49,7 +49,7 @@ export function EmoteToast({ emote, senderLabel }: { emote: (EmoteBroadcastMessa
 
   return (
     <div
-      className="pointer-events-none fixed bottom-8 left-1/2 z-40 -translate-x-1/2 rounded-full bg-black/70 px-4 py-2 text-sm text-amber-200 shadow-lg"
+      className="glass-strong pointer-events-none fixed bottom-20 left-1/2 z-50 -translate-x-1/2 animate-pop-in rounded-full px-5 py-2 text-sm font-medium text-accent-soft sm:bottom-8"
       data-testid="emote-toast"
     >
       {senderLabel}: {EMOTE_TEXT[emote.emoteId]}

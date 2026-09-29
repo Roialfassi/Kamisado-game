@@ -7,7 +7,8 @@ export interface TowerPieceProps {
   sumoRank: SumoRank;
   selected?: boolean;
   symbolsEnabled?: boolean;
-  size?: number;
+  /** px number, or any CSS length (e.g. '86%' to fill a board slot). */
+  size?: number | string;
 }
 
 const SUMO_BADGE: Record<SumoRank, string> = {
@@ -49,8 +50,8 @@ export function TowerPiece({
     >
       <svg
         viewBox="0 0 100 100"
-        width={size}
-        height={size}
+        width="100%"
+        height="100%"
         className={`w-full h-full transition-transform ${
           selected
             ? 'filter drop-shadow-[0_0_12px_rgba(255,215,0,0.9)] drop-shadow-[0_4px_8px_rgba(0,0,0,0.8)]'

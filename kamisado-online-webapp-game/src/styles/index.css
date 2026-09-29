@@ -4,31 +4,127 @@
 
 :root {
   color-scheme: dark;
+  /* One size drives the grid AND the coordinate rails: as wide as the screen
+     allows, but never taller than the space left under the header, both player bars
+     and the turn banner (so nothing important falls below the fold on desktop). */
+  --board-size: min(calc(100vw - 5.5rem), calc(100dvh - 370px), 640px);
+}
+
+html {
+  -webkit-tap-highlight-color: transparent;
 }
 
 body {
-  @apply bg-kamisado-lacquer text-stone-100 font-sans antialiased;
-  background-image: radial-gradient(circle at 50% -20%, rgba(255, 200, 120, 0.08), transparent 60%);
+  @apply bg-ink-900 font-sans text-stone-100 antialiased;
   min-height: 100vh;
+  min-height: 100dvh;
+  background-image:
+    radial-gradient(900px 500px at 12% -10%, rgba(99, 102, 241, 0.13), transparent 60%),
+    radial-gradient(800px 480px at 92% -8%, rgba(245, 196, 81, 0.11), transparent 60%),
+    radial-gradient(700px 500px at 50% 115%, rgba(210, 51, 57, 0.07), transparent 60%);
+  background-attachment: fixed;
 }
 
-.font-display {
-  font-family: 'Hiragino Mincho ProN', 'Yu Mincho', 'Noto Serif JP', Georgia, serif;
+@layer components {
+  /* ---- Surfaces ---- */
+  .glass {
+    @apply rounded-2xl border border-white/10;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.065), rgba(255, 255, 255, 0.025));
+    -webkit-backdrop-filter: blur(18px) saturate(140%);
+    backdrop-filter: blur(18px) saturate(140%);
+    box-shadow:
+      0 12px 32px -14px rgba(0, 0, 0, 0.7),
+      inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  }
+  .glass-strong {
+    @apply rounded-2xl border border-white/15;
+    background: linear-gradient(180deg, rgba(28, 32, 46, 0.92), rgba(15, 18, 27, 0.94));
+    -webkit-backdrop-filter: blur(24px) saturate(150%);
+    backdrop-filter: blur(24px) saturate(150%);
+    box-shadow:
+      0 30px 70px -20px rgba(0, 0, 0, 0.85),
+      inset 0 1px 0 rgba(255, 255, 255, 0.09);
+  }
+
+  /* ---- Buttons ---- */
+  .btn {
+    @apply inline-flex select-none items-center justify-center gap-2 whitespace-nowrap rounded-full px-4 py-2 text-sm font-semibold transition duration-150 active:scale-[0.97] disabled:pointer-events-none disabled:opacity-40;
+  }
+  .btn:focus-visible,
+  .seg-btn:focus-visible,
+  .icon-btn:focus-visible {
+    outline: none;
+    box-shadow:
+      0 0 0 2px #0b0d13,
+      0 0 0 4px rgba(245, 196, 81, 0.85);
+  }
+  .btn-primary {
+    @apply text-[#1a1200];
+    background: linear-gradient(180deg, #ffdd85, #f2b52b);
+    box-shadow:
+      0 8px 20px -8px rgba(245, 196, 81, 0.65),
+      inset 0 1px 0 rgba(255, 255, 255, 0.55);
+  }
+  .btn-primary:hover {
+    filter: brightness(1.06);
+    transform: translateY(-1px);
+  }
+  .btn-ghost {
+    @apply border border-white/10 bg-white/[0.06] text-stone-100 hover:border-white/20 hover:bg-white/[0.11];
+  }
+  .btn-danger {
+    @apply border border-red-400/30 bg-red-500/10 text-red-200 hover:bg-red-500/20;
+  }
+  .icon-btn {
+    @apply inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/[0.06] text-stone-200 transition hover:bg-white/[0.12] active:scale-95;
+  }
+
+  /* ---- Small bits ---- */
+  .chip {
+    @apply inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.06] px-2.5 py-1 text-xs font-medium text-stone-200;
+  }
+  .eyebrow {
+    @apply text-[11px] font-semibold uppercase tracking-[0.14em] text-stone-400;
+  }
+  .seg {
+    @apply inline-flex w-full gap-1 rounded-full border border-white/10 bg-black/30 p-1;
+  }
+  .seg-btn {
+    @apply flex-1 rounded-full px-3 py-1.5 text-sm font-semibold text-stone-300 transition hover:text-white;
+  }
+  .seg-btn[aria-checked='true'] {
+    @apply text-[#1a1200];
+    background: linear-gradient(180deg, #ffdd85, #f2b52b);
+    box-shadow: 0 4px 14px -6px rgba(245, 196, 81, 0.7);
+  }
 }
+
+.font-brand {
+  font-family: 'Noto Serif JP', 'Hiragino Mincho ProN', 'Yu Mincho', Georgia, serif;
+}
+
+/* ---- Board feedback --------------------------------------------------- */
 
 /* Colour-lock feedback: the tower that must move this turn. */
 @keyframes must-move-pulse {
-  0%, 100% { opacity: 0.6; }
-  50% { opacity: 1; }
+  0%,
+  100% {
+    opacity: 0.65;
+  }
+  50% {
+    opacity: 1;
+  }
 }
 .must-move-halo {
   position: absolute;
   inset: 2px;
   z-index: 25;
   pointer-events: none;
-  border-radius: 6px;
+  border-radius: 8px;
   border: 3px solid #ffd566;
-  box-shadow: 0 0 14px 3px rgba(255, 213, 102, 0.7), inset 0 0 12px rgba(255, 213, 102, 0.5);
+  box-shadow:
+    0 0 14px 3px rgba(255, 213, 102, 0.7),
+    inset 0 0 12px rgba(255, 213, 102, 0.5);
   animation: must-move-pulse 1.4s ease-in-out infinite;
 }
 .pickable-ring {
@@ -36,10 +132,36 @@ body {
   inset: 4px;
   z-index: 24;
   pointer-events: none;
-  border-radius: 6px;
+  border-radius: 8px;
   border: 2px dashed rgba(255, 236, 170, 0.95);
   box-shadow: 0 0 8px rgba(255, 236, 170, 0.5);
 }
+
+/* Towers glide between squares: the tower layer positions each piece with a
+   transform, so a changed square becomes a smooth slide. */
+.tower-slot {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 12.5%;
+  height: 12.5%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  transition: transform 240ms cubic-bezier(0.22, 0.9, 0.3, 1);
+  will-change: transform;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .must-move-halo { animation: none; }
+  .must-move-halo {
+    animation: none;
+  }
+  .tower-slot {
+    transition: none;
+  }
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
 }

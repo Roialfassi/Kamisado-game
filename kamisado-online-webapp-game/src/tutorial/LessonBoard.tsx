@@ -13,6 +13,8 @@ export function LessonBoard({ state, legal = [] }: { state: GameState; legal?: M
           symbolsEnabled={false}
           interactive={false}
           onSquareClick={() => {}}
+          lastMove={null}
+          size="min(calc(100vw - 5.5rem), 480px)"
         />
       </div>
     </div>
