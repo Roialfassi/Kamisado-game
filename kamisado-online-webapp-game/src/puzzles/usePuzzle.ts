@@ -8,36 +8,11 @@ import {
   applyMove,
   findTowerAt,
   getLegalMoves,
-  handlePassOrDeadlock,
 } from '@kamisado/engine';
 import { Puzzle } from './data.js';
+import { resolveGoldAndPasses } from './solver.js';
 
 export type PuzzleStatus = 'PLAYING' | 'SOLVED' | 'FAILED';
-
-/** Runs Gold's turn(s) to completion automatically: these puzzle positions
- * are constructed so Gold is either fully stymied (handled by
- * handlePassOrDeadlock) or has exactly one legal reply at every step, so
- * there is no real choice for a human to make on Gold's behalf. */
-function resolveGoldAndPasses(state: GameState): GameState {
-  let next = state;
-  if (next.status === GameStatus.IN_PROGRESS) {
-    const resolved = handlePassOrDeadlock(next);
-    next = resolved.state ?? next;
-  }
-  while (next.status === GameStatus.IN_PROGRESS && next.activePlayer === PlayerSide.GOLD) {
-    const goldMoves = next.requiredColor ? getLegalMoves(next, next.requiredColor) : [];
-    const forced = goldMoves[0];
-    if (!forced) break; // defensive: shouldn't happen, handlePassOrDeadlock above covers true stymie
-    const applied = applyMove(next, forced);
-    if (!applied.success || !applied.state) break;
-    next = applied.state;
-    if (next.status === GameStatus.IN_PROGRESS) {
-      const resolved = handlePassOrDeadlock(next);
-      next = resolved.state ?? next;
-    }
-  }
-  return next;
-}
 
 export function usePuzzle(puzzle: Puzzle) {
   const [state, setState] = useState<GameState>(() => puzzle.build());
@@ -65,7 +40,7 @@ export function usePuzzle(puzzle: Puzzle) {
       if (!applied.success || !applied.state) return;
 
       const usedNow = movesUsed + 1;
-      const resolved = resolveGoldAndPasses(applied.state);
+      const resolved = resolveGoldAndPasses(applied.state) ?? applied.state;
 
       setState(resolved);
       setMovesUsed(usedNow);

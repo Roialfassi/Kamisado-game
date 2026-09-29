@@ -1,11 +1,10 @@
 package com.kamisado.engine
 
 /**
- * The official 8x8 Kamisado color matrix, indexed [row][col], row 0 = Black's
- * home row, row 7 = Gold's home row. See the TypeScript engine's board.ts for
- * the derivation: constructed from the four "opposite color pairs" implied by
- * the fixed home rows, guaranteeing the Latin-square property and exact 180
- * degree rotational symmetry (verified programmatically in that port).
+ * The authentic 8x8 Kamisado color matrix, indexed [row][col], row 0 = Black's
+ * home row, row 7 = Gold's home row. Must stay identical to the TypeScript
+ * engine's board.ts (every row and every column contains each of the eight
+ * colors exactly once).
  */
 val BOARD_LAYOUT: List<List<Color>> = listOf(
     // Rank 1 (Row 0 - Black Home Row):

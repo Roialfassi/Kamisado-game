@@ -170,14 +170,22 @@ class EngineTest {
     @Test
     fun `Test 12 two-tower deadlock causes last mover loss`() {
         var state = fresh()
-        assertEquals(Color.ORANGE, colorAt(BOARD_LAYOUT, 1, 4))
-        assertEquals(Color.BLUE, colorAt(BOARD_LAYOUT, 2, 4))
+        // Gold's Blue tower sits on an Orange square (3,4); Black's Orange tower sits
+        // on a Blue square (2,0) - mirrors the TypeScript fixture on the authentic board.
+        assertEquals(Color.ORANGE, colorAt(BOARD_LAYOUT, 3, 4))
+        assertEquals(Color.BLUE, colorAt(BOARD_LAYOUT, 2, 0))
 
-        state = place(state, PlayerSide.GOLD, Color.BLUE, 1, 4)
-        state = place(state, PlayerSide.BLACK, Color.ORANGE, 2, 4)
-        state = place(state, PlayerSide.GOLD, Color.GREEN, 3, 3)
-        state = place(state, PlayerSide.GOLD, Color.RED, 3, 4)
-        state = place(state, PlayerSide.GOLD, Color.YELLOW, 3, 5)
+        state = place(state, PlayerSide.GOLD, Color.BLUE, 3, 4)
+        state = place(state, PlayerSide.BLACK, Color.ORANGE, 2, 0)
+
+        // Block Gold's Blue tower at (3,4): forward cells are (2,3), (2,4), (2,5)
+        state = place(state, PlayerSide.GOLD, Color.GREEN, 2, 3)
+        state = place(state, PlayerSide.GOLD, Color.RED, 2, 4)
+        state = place(state, PlayerSide.GOLD, Color.YELLOW, 2, 5)
+
+        // Block Black's Orange tower at (2,0): forward cells are (3,0), (3,1)
+        state = place(state, PlayerSide.BLACK, Color.PINK, 3, 0)
+        state = place(state, PlayerSide.BLACK, Color.PURPLE, 3, 1)
 
         state = state.copy(activePlayer = PlayerSide.GOLD, requiredColor = Color.BLUE, lastPhysicalMover = PlayerSide.BLACK)
         val result = handlePassOrDeadlock(state)
@@ -189,17 +197,29 @@ class EngineTest {
     @Test
     fun `Test 13 multi-tower circular deadlock`() {
         var state = fresh()
-        assertEquals(Color.GREEN, colorAt(BOARD_LAYOUT, 1, 0))
-        assertEquals(Color.BLUE, colorAt(BOARD_LAYOUT, 1, 7))
-        assertEquals(Color.GREEN, colorAt(BOARD_LAYOUT, 6, 7))
+        // Chain: (BLACK,BROWN)@(1,0) -> pass -> (GOLD,PURPLE)@(6,4) -> pass ->
+        // (BLACK,BLUE)@(2,3) -> pass -> back to (GOLD,PURPLE): a repeated impasse.
+        assertEquals(Color.PURPLE, colorAt(BOARD_LAYOUT, 1, 0))
+        assertEquals(Color.BLUE, colorAt(BOARD_LAYOUT, 6, 4))
+        assertEquals(Color.PURPLE, colorAt(BOARD_LAYOUT, 2, 3))
 
         state = place(state, PlayerSide.BLACK, Color.BROWN, 1, 0)
-        state = place(state, PlayerSide.GOLD, Color.GREEN, 1, 7)
-        state = place(state, PlayerSide.BLACK, Color.BLUE, 6, 7)
+        state = place(state, PlayerSide.GOLD, Color.PURPLE, 6, 4)
+        state = place(state, PlayerSide.BLACK, Color.BLUE, 2, 3)
+
+        // Block BLACK_BROWN@(1,0): forward cells (2,0),(2,1).
         state = place(state, PlayerSide.GOLD, Color.ORANGE, 2, 0)
-        state = place(state, PlayerSide.GOLD, Color.PURPLE, 2, 1)
-        state = place(state, PlayerSide.BLACK, Color.PINK, 0, 6)
-        state = place(state, PlayerSide.BLACK, Color.YELLOW, 7, 6)
+        state = place(state, PlayerSide.GOLD, Color.YELLOW, 2, 1)
+
+        // Block GOLD_PURPLE@(6,4): forward cells (5,3),(5,4),(5,5).
+        state = place(state, PlayerSide.BLACK, Color.GREEN, 5, 3)
+        state = place(state, PlayerSide.BLACK, Color.RED, 5, 4)
+        state = place(state, PlayerSide.BLACK, Color.PINK, 5, 5)
+
+        // Block BLACK_BLUE@(2,3): forward cells (3,2),(3,3),(3,4).
+        state = place(state, PlayerSide.GOLD, Color.PINK, 3, 2)
+        state = place(state, PlayerSide.GOLD, Color.BROWN, 3, 3)
+        state = place(state, PlayerSide.GOLD, Color.RED, 3, 4)
 
         state = state.copy(activePlayer = PlayerSide.BLACK, requiredColor = Color.BROWN, lastPhysicalMover = PlayerSide.GOLD)
         val result = handlePassOrDeadlock(state)
