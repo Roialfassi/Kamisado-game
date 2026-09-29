@@ -18,6 +18,8 @@ import {
   findTower,
   getLegalMoves,
   handlePassOrDeadlock,
+  regroupForNextRound,
+  reseatForNextRound,
   tickClock,
   towerId,
 } from '../src/index.js';
@@ -472,5 +474,76 @@ describe('Clock handling (beyond the 25 mandatory cases: tickClock/checkTimeout/
     const next = applyClockIncrement(state, PlayerSide.BLACK, 2_000);
     expect(next.clocks[PlayerSide.BLACK]).toBe(12_000);
     expect(next.clocks[PlayerSide.GOLD]).toBe(10_000);
+  });
+});
+
+describe('Between rounds: reseatForNextRound (house rule - same colour order every round)', () => {
+  /** A finished round: scattered towers, one Sumo, Black won by reaching row 7. */
+  function finishedRound(): GameState {
+    let state = fresh(MatchFormat.STANDARD);
+    state = place(state, PlayerSide.BLACK, Color.RED, 7, 2, SumoRank.SINGLE);
+    state = place(state, PlayerSide.BLACK, Color.PINK, 3, 4);
+    state = place(state, PlayerSide.GOLD, Color.BLUE, 4, 6);
+    state = place(state, PlayerSide.GOLD, Color.GREEN, 1, 0, SumoRank.DOUBLE);
+    return patch(state, {
+      status: GameStatus.ROUND_OVER,
+      roundWinner: PlayerSide.BLACK,
+      roundOverReason: 'BASELINE_REACHED',
+      requiredColor: Color.BLUE,
+      lastPhysicalMover: PlayerSide.BLACK,
+    });
+  }
+
+  it('puts every tower back on the home square of its own colour, for both sides', () => {
+    const next = reseatForNextRound(finishedRound());
+    const opening = fresh();
+    for (const [id, t] of Object.entries(opening.towers)) {
+      expect(next.towers[id]!.position).toEqual(t.position);
+    }
+    // each home square really is the tower's own colour (round-1 colour order)
+    for (const t of Object.values(next.towers)) {
+      expect(colorAt(BOARD_LAYOUT, t.position.row, t.position.col)).toBe(t.color);
+    }
+  });
+
+  it('gives the same arrangement no matter where towers ended the round', () => {
+    const a = reseatForNextRound(finishedRound());
+    const b = reseatForNextRound(patch(fresh(MatchFormat.STANDARD), { status: GameStatus.ROUND_OVER, roundWinner: PlayerSide.BLACK }));
+    expect(a.towers).toEqual({
+      ...b.towers,
+      [towerId(PlayerSide.BLACK, Color.RED)]: { ...b.towers[towerId(PlayerSide.BLACK, Color.RED)]!, sumoRank: SumoRank.SINGLE },
+      [towerId(PlayerSide.GOLD, Color.GREEN)]: { ...b.towers[towerId(PlayerSide.GOLD, Color.GREEN)]!, sumoRank: SumoRank.DOUBLE },
+    });
+  });
+
+  it('keeps sumo ranks and scores, advances the round, and lets the loser open', () => {
+    const before = finishedRound();
+    const next = reseatForNextRound(before);
+    expect(tower(next, PlayerSide.BLACK, Color.RED).sumoRank).toBe(SumoRank.SINGLE);
+    expect(tower(next, PlayerSide.GOLD, Color.GREEN).sumoRank).toBe(SumoRank.DOUBLE);
+    expect(next.scores).toEqual(before.scores);
+    expect(next.currentRound).toBe(before.currentRound + 1);
+    expect(next.status).toBe(GameStatus.IN_PROGRESS);
+    expect(next.activePlayer).toBe(PlayerSide.GOLD); // Black won, so Gold (loser) opens
+    expect(next.requiredColor).toBeNull();
+    expect(next.lastMove).toBeNull();
+    expect(next.roundWinner).toBeUndefined();
+    expect(next.roundOverReason).toBeUndefined();
+  });
+
+  it('does not mutate the finished state', () => {
+    const before = finishedRound();
+    const snapshot = JSON.stringify(before);
+    reseatForNextRound(before);
+    expect(JSON.stringify(before)).toBe(snapshot);
+  });
+
+  it('official regroupForNextRound stays available and still mirrors with fill direction', () => {
+    const before = finishedRound();
+    const left = regroupForNextRound(before, true);
+    const right = regroupForNextRound(before, false);
+    expect(tower(left, PlayerSide.BLACK, Color.RED).position).toEqual({ row: 0, col: 0 }); // most advanced first
+    expect(tower(right, PlayerSide.BLACK, Color.RED).position).toEqual({ row: 0, col: 7 });
+    expect(left.currentRound).toBe(before.currentRound + 1);
   });
 });

@@ -121,8 +121,9 @@ class GameViewModel(
         maybeTriggerBot()
     }
 
-    fun regroup(fillFromLeft: Boolean) {
-        val next = regroupForNextRound(_state.value.game, fillFromLeft)
+    /** Starts the next round: every tower returns to its own colour square (house rule). */
+    fun startNextRound() {
+        val next = reseatForNextRound(_state.value.game)
         moveCounter = 1
         _state.value = _state.value.copy(game = next, history = emptyList(), selected = null, legalDestinations = emptyList())
         maybeTriggerBot()

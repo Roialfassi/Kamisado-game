@@ -384,4 +384,43 @@ class EngineTest {
         assertEquals(false, passAttempt.success)
         assertEquals(EngineErrorCode.MANDATORY_PUSH, passAttempt.errorCode)
     }
+
+    // ---- Between rounds: reseatForNextRound (house rule) ----
+
+    private fun finishedRound(): GameState {
+        var state = fresh(MatchFormat.STANDARD)
+        state = place(state, PlayerSide.BLACK, Color.RED, 7, 2, SumoRank.SINGLE)
+        state = place(state, PlayerSide.BLACK, Color.PINK, 3, 4)
+        state = place(state, PlayerSide.GOLD, Color.BLUE, 4, 6)
+        state = place(state, PlayerSide.GOLD, Color.GREEN, 1, 0, SumoRank.DOUBLE)
+        return state.copy(
+            status = GameStatus.ROUND_OVER,
+            roundWinner = PlayerSide.BLACK,
+            roundOverReason = RoundOverReason.BASELINE_REACHED,
+            requiredColor = Color.BLUE,
+            lastPhysicalMover = PlayerSide.BLACK,
+        )
+    }
+
+    @Test
+    fun `reseat puts every tower back on the home square of its own colour`() {
+        val next = reseatForNextRound(finishedRound())
+        val opening = fresh()
+        for ((id, t) in opening.towers) assertEquals(t.position, next.towers.getValue(id).position)
+        for (t in next.towers.values) assertEquals(t.color, colorAt(BOARD_LAYOUT, t.position.row, t.position.col))
+    }
+
+    @Test
+    fun `reseat keeps sumo ranks and scores, advances the round, and the loser opens`() {
+        val before = finishedRound()
+        val next = reseatForNextRound(before)
+        assertEquals(SumoRank.SINGLE, tower(next, PlayerSide.BLACK, Color.RED).sumoRank)
+        assertEquals(SumoRank.DOUBLE, tower(next, PlayerSide.GOLD, Color.GREEN).sumoRank)
+        assertEquals(before.scores, next.scores)
+        assertEquals(before.currentRound + 1, next.currentRound)
+        assertEquals(GameStatus.IN_PROGRESS, next.status)
+        assertEquals(PlayerSide.GOLD, next.activePlayer)
+        assertNull(next.requiredColor)
+        assertNull(next.roundWinner)
+    }
 }

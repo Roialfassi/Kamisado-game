@@ -32,12 +32,15 @@ export interface SendEmoteMessage {
   emoteId: EmoteId;
 }
 
-/** Pragmatic addition beyond the literal spec: the round-winner (new round's
- * Defender) tells the server which direction both sides regroup in. */
+/** Pragmatic addition beyond the literal spec: a seated player asks the
+ * server to start the next round once a round is over. Every round restarts
+ * with each tower on its own colour square (house rule), so there is no
+ * direction choice; `fillFromLeft` is accepted for older clients and ignored. */
 export interface RegroupMessage {
   type: 'REGROUP';
   roomId: string;
-  fillFromLeft: boolean;
+  /** @deprecated ignored - kept so older clients still type-check. */
+  fillFromLeft?: boolean;
 }
 
 export type ClientMessage = JoinRoomMessage | SubmitMoveMessage | ResignMessage | SendEmoteMessage | RegroupMessage;

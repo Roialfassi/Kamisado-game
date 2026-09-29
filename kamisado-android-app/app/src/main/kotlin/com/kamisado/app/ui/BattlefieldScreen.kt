@@ -83,7 +83,7 @@ fun BattlefieldScreen(
 
         if (ui.game.status != GameStatus.IN_PROGRESS) {
             Spacer(Modifier.height(12.dp))
-            RoundOverCard(ui.game, onRegroup = viewModel::regroup)
+            RoundOverCard(ui.game, onStartNextRound = viewModel::startNextRound)
         }
     }
 }
@@ -109,17 +109,14 @@ private fun TurnBanner(game: com.kamisado.engine.GameState) {
 }
 
 @Composable
-private fun RoundOverCard(game: com.kamisado.engine.GameState, onRegroup: (Boolean) -> Unit) {
+private fun RoundOverCard(game: com.kamisado.engine.GameState, onStartNextRound: () -> Unit) {
     Card {
         Column(modifier = Modifier.fillMaxWidth().padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             val winnerLabel = if (game.roundWinner == PlayerSide.BLACK) "Black" else "Gold"
             Text(if (game.status == GameStatus.MATCH_OVER) "$winnerLabel wins the match!" else "$winnerLabel wins round ${game.currentRound}!")
             if (game.status == GameStatus.ROUND_OVER) {
                 Spacer(Modifier.height(8.dp))
-                Row {
-                    Button(onClick = { onRegroup(true) }, modifier = Modifier.padding(end = 8.dp)) { Text("Fill Left") }
-                    Button(onClick = { onRegroup(false) }) { Text("Fill Right") }
-                }
+                Button(onClick = onStartNextRound) { Text("Start round ${game.currentRound + 1}") }
             }
         }
     }

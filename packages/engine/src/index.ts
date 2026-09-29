@@ -18,6 +18,7 @@ export {
   applyMove,
   handlePassOrDeadlock,
   regroupForNextRound,
+  reseatForNextRound,
   tickClock,
   applyClockIncrement,
   checkTimeout,

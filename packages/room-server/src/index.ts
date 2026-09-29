@@ -177,7 +177,14 @@ function handleResign(ws: WebSocket, msg: Extract<ClientMessage, { type: 'RESIGN
 function handleRegroup(ws: WebSocket, msg: Extract<ClientMessage, { type: 'REGROUP' }>): void {
   const room = requireRoom(ws, msg.roomId);
   if (!room) return;
-  applyRoomRegroup(room, msg.fillFromLeft);
+  if (seatOf(room, ws) === 'SPECTATOR') {
+    send(ws, { type: 'ERROR', message: 'Only a seated player can start the next round' });
+    return;
+  }
+  if (!applyRoomRegroup(room)) {
+    send(ws, { type: 'ERROR', message: 'The next round can only be started between rounds' });
+    return;
+  }
   broadcastRoomState(room);
 }
 

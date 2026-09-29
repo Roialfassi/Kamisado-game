@@ -252,6 +252,28 @@ fun regroupForNextRound(state: GameState, fillFromLeft: Boolean): GameState {
         }
     }
 
+    return beginNextRound(state, towers)
+}
+
+/**
+ * House rule (owner's choice, replacing the official F1-F4 fill-from-left/
+ * right regroup for this app): every round after the first restarts with each
+ * tower back on the home-row square of its own colour, exactly like round 1.
+ * Sumo ranks earned so far persist; only board position resets. Mirrors the
+ * TypeScript engine's `reseatForNextRound`.
+ */
+fun reseatForNextRound(state: GameState): GameState {
+    val home = buildInitialTowers()
+    val towers = state.towers.mapValues { (id, tower) ->
+        val start = home[id] ?: error("unknown tower $id")
+        tower.copy(position = start.position)
+    }
+    return beginNextRound(state, towers)
+}
+
+/** Shared "start the next round" bookkeeping: fresh board, the round's loser
+ * (the Challenger) opens, and all per-round state is cleared. */
+private fun beginNextRound(state: GameState, towers: Map<String, Tower>): GameState {
     val nextChallenger = state.roundWinner?.other() ?: state.activePlayer
 
     return state.copy(

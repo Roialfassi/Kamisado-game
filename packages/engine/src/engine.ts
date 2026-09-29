@@ -353,6 +353,31 @@ export function regroupForNextRound(state: GameState, fillFromLeft: boolean): Ga
     });
   }
 
+  return beginNextRound(state, towers);
+}
+
+/**
+ * House rule (owner's choice, replacing the official F1-F4 fill-from-left/
+ * right regroup for this app): every round after the first restarts with
+ * each tower back on the home-row square of its own colour, exactly like
+ * round 1 - the same order every time. Sumo ranks earned so far persist;
+ * only board position resets. `regroupForNextRound` remains available for
+ * the official rule.
+ */
+export function reseatForNextRound(state: GameState): GameState {
+  const home = buildInitialTowers();
+  const towers: Record<string, Tower> = {};
+  for (const [id, tower] of Object.entries(state.towers)) {
+    const start = home[id];
+    if (!start) throw new Error(`unknown tower ${id}`);
+    towers[id] = { ...tower, position: { ...start.position } };
+  }
+  return beginNextRound(state, towers);
+}
+
+/** Shared "start the next round" bookkeeping: fresh board, the round's loser
+ * (the Challenger) opens, and all per-round state is cleared. */
+function beginNextRound(state: GameState, towers: Record<string, Tower>): GameState {
   const nextChallenger =
     state.roundWinner !== undefined ? otherSide(state.roundWinner) : state.activePlayer;
 

@@ -15,7 +15,7 @@ import {
   findTowerAt,
   getLegalMoves,
   handlePassOrDeadlock,
-  regroupForNextRound,
+  reseatForNextRound,
   tickClock,
 } from '@kamisado/engine';
 import { BotTier, chooseBotMove } from '../ai/bot.js';
@@ -45,7 +45,7 @@ export interface KamisadoGameApi {
   state: GameState;
   history: HistoryEntry[];
   /** The board position at the start of the current round (ply 0 for the
-   * replay viewer) - reset on restart and on each regroup. */
+   * replay viewer) - reset on restart and at the start of each round. */
   roundStartState: GameState;
   selected: Coordinate | null;
   legalDestinations: Move[];
@@ -53,7 +53,8 @@ export interface KamisadoGameApi {
   isHumanTurn: boolean;
   selectSquare: (coord: Coordinate) => void;
   clearSelection: () => void;
-  regroup: (fillFromLeft: boolean) => void;
+  /** Starts the next round - every tower returns to its own colour square. */
+  startNextRound: () => void;
   restart: () => void;
 }
 
@@ -178,9 +179,9 @@ export function useKamisadoGame(options: UseKamisadoGameOptions): KamisadoGameAp
 
   const clearSelection = useCallback(() => setSelected(null), []);
 
-  const regroup = useCallback(
-    (fillFromLeft: boolean) => {
-      const next = regroupForNextRound(state, fillFromLeft);
+  const startNextRound = useCallback(
+    () => {
+      const next = reseatForNextRound(state);
       setState(next);
       setRoundStartState(next);
       setHistory([]);
@@ -229,7 +230,7 @@ export function useKamisadoGame(options: UseKamisadoGameOptions): KamisadoGameAp
     isHumanTurn,
     selectSquare,
     clearSelection,
-    regroup,
+    startNextRound,
     restart,
   };
 }

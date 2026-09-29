@@ -93,7 +93,7 @@ export function useRoomConnection(roomId: string, playerName: string, preferredS
 
   const submitMove = useCallback((move: Move) => send({ type: 'SUBMIT_MOVE', roomId, move }), [send, roomId]);
   const resign = useCallback((playerSide: PlayerSide) => send({ type: 'RESIGN', roomId, playerSide }), [send, roomId]);
-  const regroup = useCallback((fillFromLeft: boolean) => send({ type: 'REGROUP', roomId, fillFromLeft }), [send, roomId]);
+  const startNextRound = useCallback(() => send({ type: 'REGROUP', roomId }), [send, roomId]);
   const sendEmote = useCallback((emoteId: EmoteId) => send({ type: 'SEND_EMOTE', roomId, emoteId }), [send, roomId]);
 
   const legalDestinations: Move[] = (() => {
@@ -147,7 +147,7 @@ export function useRoomConnection(roomId: string, playerName: string, preferredS
     selectSquare,
     submitMove,
     resign,
-    regroup,
+    startNextRound,
     sendEmote,
     playerId,
   };

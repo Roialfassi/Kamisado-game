@@ -179,13 +179,11 @@ function RoomArena({ roomId, playerName, preferredSide }: { roomId: string; play
                 {(gameState.roundWinner === PlayerSide.BLACK ? blackName : goldName)} wins the{' '}
                 {gameState.status === 'MATCH_OVER' ? 'match' : `round (${gameState.roundOverReason?.toLowerCase()})`}!
               </p>
-              {gameState.status === 'ROUND_OVER' && gameState.roundWinner === yourSide && (
-                <div className="mt-3 flex justify-center gap-2">
-                  <button onClick={() => conn.regroup(true)} className="rounded bg-amber-600 px-3 py-1.5 text-sm font-semibold">
-                    Fill from Left
-                  </button>
-                  <button onClick={() => conn.regroup(false)} className="rounded bg-amber-600 px-3 py-1.5 text-sm font-semibold">
-                    Fill from Right
+              {gameState.status === 'ROUND_OVER' && yourSide !== 'SPECTATOR' && (
+                <div className="mt-3 flex flex-col items-center gap-1">
+                  <p className="text-xs text-white/60">Every tower returns to its own colour square for the next round.</p>
+                  <button onClick={conn.startNextRound} className="rounded bg-amber-600 px-3 py-1.5 text-sm font-semibold" data-testid="start-next-round">
+                    Start round {gameState.currentRound + 1}
                   </button>
                 </div>
               )}

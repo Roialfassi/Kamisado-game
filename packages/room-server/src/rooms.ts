@@ -11,7 +11,7 @@ import {
   createGame,
   handlePassOrDeadlock,
   otherSide,
-  regroupForNextRound,
+  reseatForNextRound,
 } from '@kamisado/engine';
 import type { RoundFinishedReason } from '@kamisado/protocol';
 import type { WebSocket } from 'ws';
@@ -147,6 +147,11 @@ export function applyResignation(room: Room, resigningSide: PlayerSide): ApplyMo
   };
 }
 
-export function applyRoomRegroup(room: Room, fillFromLeft: boolean): void {
-  room.gameState = regroupForNextRound(room.gameState, fillFromLeft);
+/** Starts the next round of a finished (non-final) round: every tower goes
+ * back to the home square of its own colour. Returns false, changing
+ * nothing, if the room is not between rounds. */
+export function applyRoomRegroup(room: Room): boolean {
+  if (room.gameState.status !== GameStatus.ROUND_OVER) return false;
+  room.gameState = reseatForNextRound(room.gameState);
+  return true;
 }

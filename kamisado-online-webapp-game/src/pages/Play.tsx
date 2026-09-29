@@ -102,7 +102,7 @@ function GameScreen({
             interactive={game.isHumanTurn}
             onSquareClick={game.selectSquare}
           />
-          <RegroupPrompt state={game.state} blackName={blackName} goldName={goldName} onRegroup={game.regroup} onRestart={game.restart} />
+          <RegroupPrompt state={game.state} blackName={blackName} goldName={goldName} onStartNextRound={game.startNextRound} onRestart={game.restart} />
           {game.state.status !== GameStatus.IN_PROGRESS && game.history.length > 0 && (
             <button
               onClick={() => setShowReplay(true)}
