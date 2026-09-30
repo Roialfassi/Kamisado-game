@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 import { GameState, GameStatus, MATCH_FORMAT_POINTS, PlayerSide } from '@kamisado/engine';
 import { Icon } from './ui/Icon.js';
 import { Modal } from './ui/Modal.js';
@@ -23,11 +23,15 @@ export interface RoundModalProps {
   /** Match over (vs the bot): play again with the colours swapped. */
   onSwapSides?: () => void;
   onReplay?: () => void;
+  /** Replaces the Rematch / swap-sides buttons in the match-over dialog and bar (the campaign's own actions). */
+  matchActions?: (compact: boolean) => ReactNode;
+  /** A line of flavour under the match result. */
+  matchNote?: string;
 }
 
 /** Round / match result dialog. Dismissible so the final position can be
  * inspected; a compact bar under the board keeps the primary action reachable. */
-export function RoundModal({ state, blackName, goldName, onStartNextRound, waitingText, onRestart, onSwapSides, onReplay }: RoundModalProps) {
+export function RoundModal({ state, blackName, goldName, onStartNextRound, waitingText, onRestart, onSwapSides, onReplay, matchActions, matchNote }: RoundModalProps) {
   const over = state.status === GameStatus.ROUND_OVER || state.status === GameStatus.MATCH_OVER;
   const key = `${state.currentRound}-${state.status}`;
   const [dismissedKey, setDismissedKey] = useState<string | null>(null);
@@ -45,7 +49,10 @@ export function RoundModal({ state, blackName, goldName, onStartNextRound, waiti
   const dismissed = dismissedKey === key;
 
   const primary = matchOver ? (
-    onRestart && (
+    matchActions ? (
+      matchActions(false)
+    ) : (
+      onRestart && (
       <>
         <button className="btn btn-primary w-full" onClick={onRestart} data-testid="new-match">
           <Icon name="refresh" /> Rematch
@@ -56,6 +63,7 @@ export function RoundModal({ state, blackName, goldName, onStartNextRound, waiti
           </button>
         )}
       </>
+      )
     )
   ) : onStartNextRound ? (
     <button className="btn btn-primary w-full" onClick={onStartNextRound} data-testid="start-next-round">
@@ -67,10 +75,14 @@ export function RoundModal({ state, blackName, goldName, onStartNextRound, waiti
 
   // the compact bar keeps just the main action (swap-sides lives in the dialog)
   const barPrimary = matchOver ? (
-    onRestart && (
+    matchActions ? (
+      matchActions(true)
+    ) : (
+      onRestart && (
       <button className="btn btn-primary py-1.5" onClick={onRestart} data-testid="new-match">
         <Icon name="refresh" /> Rematch
       </button>
+      )
     )
   ) : onStartNextRound ? (
     <button className="btn btn-primary py-1.5" onClick={onStartNextRound} data-testid="start-next-round">
@@ -110,6 +122,7 @@ export function RoundModal({ state, blackName, goldName, onStartNextRound, waiti
             {winnerName} {matchOver ? 'wins the match!' : 'takes the round'}
           </h2>
           {reason && !matchOver && <p className="mt-1 text-sm text-stone-400">{reason}</p>}
+          {matchOver && matchNote && <p className="mt-2 text-sm italic text-stone-300" data-testid="match-note">{matchNote}</p>}
         </div>
 
         <div className="flex w-full items-center justify-center gap-4 rounded-xl bg-black/30 px-4 py-3 text-sm">

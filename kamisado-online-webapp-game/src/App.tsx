@@ -4,11 +4,13 @@ import Play from './pages/Play.js';
 import Academy from './pages/Academy.js';
 import Room from './pages/Room.js';
 import DailyPuzzle from './pages/DailyPuzzle.js';
+import Campaign from './pages/Campaign.js';
 import { SettingsMenu } from './components/SettingsMenu.js';
 import { Icon, IconName } from './components/ui/Icon.js';
 
 const NAV: { to: string; match: string; label: string; icon: IconName }[] = [
   { to: '/play?mode=ai', match: '/play', label: 'Play', icon: 'play' },
+  { to: '/campaign', match: '/campaign', label: 'Campaign', icon: 'trophy' },
   { to: '/academy', match: '/academy', label: 'Learn', icon: 'book' },
   { to: '/puzzle', match: '/puzzle', label: 'Puzzle', icon: 'calendar' },
   { to: '/room', match: '/room', label: 'Online', icon: 'users' },
@@ -48,6 +50,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/play" element={<Play />} />
+          <Route path="/campaign" element={<Campaign />} />
           <Route path="/academy" element={<Academy />} />
           <Route path="/room" element={<Room />} />
           <Route path="/room/:roomId" element={<Room />} />

@@ -44,6 +44,10 @@ export interface UseKamisadoGameOptions {
   timeControl?: TimeControlChoice;
   /** Ask before a move that hands the opponent an immediate win (single-human games). */
   blunderGuard?: boolean;
+  /** Undo and hints (default true). The campaign switches them off. */
+  assists?: boolean;
+  /** Save unfinished untimed games for resuming (default true). */
+  autosave?: boolean;
 }
 
 export interface KamisadoGameApi {
@@ -284,7 +288,7 @@ export function useKamisadoGame(options: UseKamisadoGameOptions, resume?: Rebuil
 
   // ---- undo ----------------------------------------------------------
   const undoTarget = useMemo(() => {
-    if (options.timeControl || history.length === 0 || humanSides.length === 0) return null;
+    if (options.timeControl || options.assists === false || history.length === 0 || humanSides.length === 0) return null;
     let i = history.length;
     if (!bothHuman) {
       // drop the bot's reply(ies), then the human's own last move
@@ -292,7 +296,7 @@ export function useKamisadoGame(options: UseKamisadoGameOptions, resume?: Rebuil
       if (i === 0) return null; // the human hasn't moved yet this round
     }
     return i - 1; // keep history[0 .. i-2]
-  }, [history, humanSides, bothHuman, options.timeControl]);
+  }, [history, humanSides, bothHuman, options.timeControl, options.assists]);
 
   // a finished match stays finished (the result dialog offers a rematch instead)
   const canUndo = undoTarget !== null && !botThinking && state.status !== GameStatus.MATCH_OVER;
@@ -310,7 +314,7 @@ export function useKamisadoGame(options: UseKamisadoGameOptions, resume?: Rebuil
   }, [undoTarget, botThinking, history, roundStartState, clearTransient]);
 
   // ---- hint ----------------------------------------------------------
-  const canHint = canAct && !bothHuman && !pendingMove && !options.timeControl;
+  const canHint = canAct && !bothHuman && !pendingMove && !options.timeControl && options.assists !== false;
   const requestMoveHint = useCallback(() => {
     if (!canHint || hintBusy) return;
     const askedAt = positionKey;
@@ -389,7 +393,7 @@ export function useKamisadoGame(options: UseKamisadoGameOptions, resume?: Rebuil
 
   // ---- autosave (untimed games only) --------------------------------
   useEffect(() => {
-    if (options.timeControl) return;
+    if (options.timeControl || options.autosave === false) return;
     if (state.status === GameStatus.MATCH_OVER) {
       clearSavedGame();
       return;
@@ -399,7 +403,7 @@ export function useKamisadoGame(options: UseKamisadoGameOptions, resume?: Rebuil
       return;
     }
     saveGame({ format: options.format, black: options.black, gold: options.gold, blunderGuard: !!options.blunderGuard }, roundStartState, history);
-  }, [history, roundStartState, state.status, state.currentRound, options.format, options.black, options.gold, options.blunderGuard, options.timeControl]);
+  }, [history, roundStartState, state.status, state.currentRound, options.format, options.black, options.gold, options.blunderGuard, options.timeControl, options.autosave]);
 
   return {
     state,
