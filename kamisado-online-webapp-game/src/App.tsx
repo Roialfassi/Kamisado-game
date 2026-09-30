@@ -7,6 +7,7 @@ import DailyPuzzle from './pages/DailyPuzzle.js';
 import Campaign from './pages/Campaign.js';
 import { SettingsMenu } from './components/SettingsMenu.js';
 import { Icon, IconName } from './components/ui/Icon.js';
+import { useOnline } from './lib/useOnline.js';
 
 const NAV: { to: string; match: string; label: string; icon: IconName }[] = [
   { to: '/play?mode=ai', match: '/play', label: 'Play', icon: 'play' },
@@ -19,6 +20,7 @@ const NAV: { to: string; match: string; label: string; icon: IconName }[] = [
 export default function App() {
   const { pathname } = useLocation();
   const isActive = (match: string) => pathname.startsWith(match);
+  const online = useOnline();
 
   return (
     <div className="min-h-screen pb-16 sm:pb-0">
@@ -42,7 +44,14 @@ export default function App() {
               </Link>
             ))}
           </nav>
-          <SettingsMenu />
+          <div className="flex items-center gap-2">
+            {!online && (
+              <span className="chip border-amber-400/40 bg-amber-500/10 text-amber-200" role="status" data-testid="offline-chip" title="You are offline: the AI, campaign and puzzles still work; online rooms need a connection.">
+                Offline
+              </span>
+            )}
+            <SettingsMenu />
+          </div>
         </div>
       </header>
 
