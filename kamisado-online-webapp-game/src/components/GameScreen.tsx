@@ -1,4 +1,4 @@
-import { ReactNode, useEffect, useRef, useState } from 'react';
+import { ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { GameStatus, PlayerSide } from '@kamisado/engine';
 import { LEVEL_INFO } from '../ai/botClient.js';
 import { Board } from './Board.js';
@@ -9,6 +9,7 @@ import { ReplayViewer } from './ReplayViewer.js';
 import { RoundModal } from './RoundModal.js';
 import { TurnBanner } from './TurnBanner.js';
 import { Icon } from './ui/Icon.js';
+import { announceState } from '../lib/announce.js';
 import { FORMAT_LABELS, formatSummary } from '../lib/matchFormats.js';
 import { RebuiltGame } from '../lib/savedGame.js';
 import { useSymbolsEnabled } from '../lib/usePreferences.js';
@@ -72,10 +73,18 @@ export function GameScreen({
     campaign.onMatchEnd(game.state.matchWinner === humanSide);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [game.state.status, game.state.matchWinner]);
+  const announcement = useMemo(
+    () => announceState(game.state, lastMove, { black: black.name, gold: gold.name, you: bothHuman ? null : humanSide }, game.botThinking),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [game.state.status, game.state.activePlayer, game.state.requiredColor, game.state.currentRound, game.history.length, game.botThinking],
+  );
   const opponentName = labelFor(game.state.activePlayer === PlayerSide.BLACK ? PlayerSide.GOLD : PlayerSide.BLACK).name;
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col items-center gap-5 px-4 py-4 sm:py-6 lg:flex-row lg:items-start lg:justify-center lg:gap-8">
+      <div className="sr-only" role="status" aria-live="polite" data-testid="announcer">
+        {announcement}
+      </div>
       <div className="inline-flex flex-col items-stretch gap-2.5">
         <PlayerBar side={top} label={labelFor(top)} state={game.state} showClock={!!setup.timeControl} />
         <div className="relative self-center">

@@ -1,4 +1,4 @@
-import { CSSProperties } from 'react';
+import { CSSProperties, KeyboardEvent, useRef, useState } from 'react';
 import { Color, Coordinate, GameState, Move, MoveType, PlayerSide, findTowerAt } from '@kamisado/engine';
 import { COLOR_HEX, COLOR_KANJI, isDarkSquare } from '../lib/theme.js';
 import { getMustMoveTower, getPickableTowers } from '../lib/mustMove.js';
@@ -59,6 +59,50 @@ export function Board({
 
   const frameVars = { ...(size ? { '--board-size': size } : {}) } as CSSProperties;
 
+  // Keyboard: a roving tabindex (one tab stop) moved with the arrow keys; Enter/Space click the focused square.
+  const [cursor, setCursor] = useState<Coordinate | null>(null);
+  const buttons = useRef(new Map<string, HTMLButtonElement>());
+  const fallback: Coordinate = selected ?? getMustMoveTower(state)?.position ?? { row: rows[7]!, col: cols[0]! };
+  const cur = cursor ?? fallback;
+  const onGridKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    const target = (e.target as HTMLElement).closest<HTMLElement>('[data-testid=square]');
+    if (!target) return;
+    let vr = rows.indexOf(Number(target.dataset.row));
+    let vc = cols.indexOf(Number(target.dataset.col));
+    switch (e.key) {
+      case 'ArrowUp':
+        vr = Math.max(0, vr - 1);
+        break;
+      case 'ArrowDown':
+        vr = Math.min(7, vr + 1);
+        break;
+      case 'ArrowLeft':
+        vc = Math.max(0, vc - 1);
+        break;
+      case 'ArrowRight':
+        vc = Math.min(7, vc + 1);
+        break;
+      case 'Home':
+        vc = 0;
+        break;
+      case 'End':
+        vc = 7;
+        break;
+      case 'PageUp':
+        vr = 0;
+        break;
+      case 'PageDown':
+        vr = 7;
+        break;
+      default:
+        return;
+    }
+    e.preventDefault();
+    const next = { row: rows[vr]!, col: cols[vc]! };
+    setCursor(next);
+    buttons.current.get(`${next.row},${next.col}`)?.focus();
+  };
+
   return (
     <div
       className="relative inline-block select-none rounded-[22px] p-2 sm:p-3.5"
@@ -95,7 +139,10 @@ export function Board({
         <div
           className="relative overflow-hidden rounded-md bg-[#120803] shadow-[inset_0_2px_10px_rgba(0,0,0,0.85),0_0_0_1px_rgba(0,0,0,0.6)]"
           role="grid"
-          aria-label="Kamisado board"
+          aria-label="Kamisado board. Use the arrow keys to move between squares and Enter to select."
+          aria-rowcount={8}
+          aria-colcount={8}
+          onKeyDown={onGridKeyDown}
         >
           <div className="grid h-full w-full grid-cols-8 grid-rows-8">
             {rows.map((row) => (
@@ -121,9 +168,14 @@ export function Board({
                     type="button"
                     key={key}
                     role="gridcell"
+                    ref={(el) => {
+                      if (el) buttons.current.set(key, el);
+                      else buttons.current.delete(key);
+                    }}
+                    aria-selected={isSelected}
                     aria-label={`${String.fromCharCode(97 + col)}${row + 1}, ${color} square, ${
                       tower ? `${tower.side} ${tower.color} tower${isMustMove ? ', must move this turn' : ''}` : 'empty'
-                    }`}
+                    }${isSelected ? ', selected' : ''}${isDestination ? (isPushTarget ? ', legal push' : ', legal move') : ''}${isHintFrom ? ', suggested move from here' : ''}${isHintTo ? ', suggested destination' : ''}`}
                     data-testid="square"
                     data-row={row}
                     data-col={col}
@@ -131,7 +183,8 @@ export function Board({
                     data-tower-color={tower?.color}
                     data-must-move={isMustMove ? 'true' : undefined}
                     aria-disabled={!interactive}
-                    tabIndex={interactive ? 0 : -1}
+                    tabIndex={cur.row === row && cur.col === col ? 0 : -1}
+                    onFocus={() => setCursor({ row, col })}
                     onClick={() => {
                       if (interactive) onSquareClick({ row, col });
                     }}
