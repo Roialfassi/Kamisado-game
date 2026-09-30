@@ -88,7 +88,7 @@ export default function Campaign() {
           return (
             <li key={stage.id}>
               <div
-                className={`glass flex items-center gap-4 p-4 transition ${isCurrent ? 'border-accent/50 shadow-[0_0_28px_-10px_rgba(245,196,81,0.6)]' : ''} ${open ? '' : 'opacity-55'}`}
+                className={`glass flex flex-wrap items-center gap-x-4 gap-y-3 p-4 transition sm:flex-nowrap ${isCurrent ? 'border-accent/50 shadow-[0_0_28px_-10px_rgba(245,196,81,0.6)]' : ''} ${open ? '' : 'opacity-55'}`}
                 data-testid={`stage-${stage.id}`}
                 data-state={done ? 'beaten' : open ? 'open' : 'locked'}
               >
@@ -100,7 +100,7 @@ export default function Campaign() {
                 >
                   {done ? '✓' : open ? i + 1 : <Icon name="close" size={14} />}
                 </span>
-                <div className="min-w-0 flex-1">
+                <div className="min-w-0 flex-1 basis-40">
                   <div className="flex flex-wrap items-baseline gap-x-2">
                     <h2 className="text-base font-bold text-white">{stage.name}</h2>
                     <span className="text-xs text-stone-400">{stage.title}</span>
@@ -113,7 +113,7 @@ export default function Campaign() {
                   </div>
                 </div>
                 {open && (
-                  <button className={`btn ${isCurrent ? 'btn-primary' : 'btn-ghost'} shrink-0`} onClick={() => setPlaying({ index: i, attempt: 0 })} data-testid={`play-${stage.id}`}>
+                  <button className={`btn ${isCurrent ? 'btn-primary' : 'btn-ghost'} w-full shrink-0 sm:w-auto`} onClick={() => setPlaying({ index: i, attempt: 0 })} data-testid={`play-${stage.id}`}>
                     {done ? 'Replay' : 'Challenge'}
                   </button>
                 )}

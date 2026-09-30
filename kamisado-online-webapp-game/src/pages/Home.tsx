@@ -80,7 +80,7 @@ export default function Home() {
     <div className="mx-auto max-w-5xl px-4 pb-16 pt-10 sm:pt-16">
       <section className="text-center">
         <p className="eyebrow text-accent/80">神 · 竜 · 塔 &nbsp;The eight-tower strategy game</p>
-        <h1 className="mt-3 font-brand text-5xl font-black tracking-[0.14em] text-white drop-shadow-[0_6px_30px_rgba(245,196,81,0.25)] sm:text-7xl">
+        <h1 className="mt-3 font-brand text-[2.6rem] font-black tracking-[0.1em] min-[380px]:text-5xl min-[380px]:tracking-[0.14em] text-white drop-shadow-[0_6px_30px_rgba(245,196,81,0.25)] sm:text-7xl">
           KAMISADO
         </h1>
         <p className="mx-auto mt-5 max-w-xl text-base leading-relaxed text-stone-300 sm:text-lg">
@@ -124,11 +124,8 @@ export default function Home() {
             }`}
           >
             {card.featured && (
-              <span
-                aria-hidden="true"
-                className="pointer-events-none absolute -right-6 -top-10 select-none font-brand text-[11rem] font-black leading-none text-white/[0.04]"
-              >
-                {card.kanji}
+              <span aria-hidden="true" className="pointer-events-none absolute inset-0 select-none overflow-hidden rounded-2xl">
+                <span className="absolute -right-6 -top-10 font-brand text-[7rem] font-black leading-none text-white/[0.04] sm:text-[11rem]">{card.kanji}</span>
               </span>
             )}
             <div className="flex items-start justify-between">
