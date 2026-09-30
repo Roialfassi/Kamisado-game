@@ -12,8 +12,16 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
-enum class Controller { HUMAN, APPRENTICE_BOT, RONIN_BOT }
+enum class Controller(val tier: BotTier?) {
+    HUMAN(null),
+    APPRENTICE_BOT(BotTier.APPRENTICE),
+    STUDENT_BOT(BotTier.STUDENT),
+    RONIN_BOT(BotTier.RONIN),
+    SAMURAI_BOT(BotTier.SAMURAI),
+    DRAGON_MASTER_BOT(BotTier.DRAGON_MASTER),
+}
 
 data class HistoryEntry(val move: Move, val notation: String)
 
@@ -138,11 +146,12 @@ class GameViewModel(
         val g = _state.value.game
         if (g.status != GameStatus.IN_PROGRESS) return
         val controller = controllerFor(g.activePlayer)
-        if (controller == Controller.HUMAN) return
-        val tier = if (controller == Controller.APPRENTICE_BOT) BotTier.APPRENTICE else BotTier.RONIN
+        val tier = controller.tier ?: return
         scope.launch {
             delay(450)
-            val move = chooseBotMove(_state.value.game, g.activePlayer, tier)
+            // the search can take a second or more at the top level: keep it off the main thread
+            val snapshot = _state.value.game
+            val move = withContext(Dispatchers.Default) { chooseBotMove(snapshot, g.activePlayer, tier) }
             if (move != null) commitMove(move)
         }
     }

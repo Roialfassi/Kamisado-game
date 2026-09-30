@@ -13,7 +13,7 @@ import androidx.compose.ui.unit.sp
 fun DojoHubScreen(
     onStartHotseat: () -> Unit,
     onStartTabletop: () -> Unit,
-    onStartSkirmish: () -> Unit,
+    onStartSkirmish: (Controller) -> Unit,
 ) {
     Column(
         modifier = Modifier.fillMaxSize().padding(24.dp),
@@ -27,7 +27,12 @@ fun DojoHubScreen(
         Spacer(Modifier.height(12.dp))
         HubButton("Tabletop Mode (Face-to-Face)", onStartTabletop)
         Spacer(Modifier.height(12.dp))
-        HubButton("AI Skirmish", onStartSkirmish)
+        Text("AI Skirmish", modifier = Modifier.padding(bottom = 8.dp))
+        for (controller in Controller.entries) {
+            val tier = controller.tier ?: continue
+            HubButton("${"★".repeat(tier.ordinal + 1)}  ${tier.label}") { onStartSkirmish(controller) }
+            Spacer(Modifier.height(8.dp))
+        }
 
         Spacer(Modifier.height(32.dp))
         Text(
