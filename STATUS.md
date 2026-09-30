@@ -16,9 +16,9 @@ from `docs/TEST_SUITE_AND_EDGE_CASES.md`:
 
 ```
 npm test -w @kamisado/engine                       # 40 tests: the 25 spec cases + clocks + next-round + non-baseline scoring
-cd kamisado-android-app && ./gradlew :engine:test  # 42 tests: the 25 spec cases + next-round + deadlock scoring (30) and the Kotlin AI port vs the Kotlin engine (12)
+cd kamisado-android-app && ./gradlew :engine:test  # 43 tests: the 25 spec cases + next-round + deadlock scoring (30) and the Kotlin AI port vs the Kotlin engine (13)
 npm test -w @kamisado/ai                           # 21 tests: fast search core vs the reference engine + bot levels + game review
-npm test -w kamisado-online-webapp-game            # 42 tests: puzzle catalogue, must-move, blunder guard, saved games, campaign, screen-reader text
+npm test -w kamisado-online-webapp-game            # 48 tests: puzzle catalogue, must-move, blunder guard, saved games, campaign, screen-reader text, service worker
 npm test -w @kamisado/room-server                  # 6 tests: resignation + next-round validation
 ```
 
@@ -93,7 +93,7 @@ switched back.
   near-perfect accuracy for search-perfect play.
 - **Kotlin port for Android** (`kamisado-android-app/engine/.../com/kamisado/ai/`:
   `Position`, `Eval`, `Search`, `Levels`): same encoding, hashing, search and
-  five levels. 12 JUnit tests check it against the *Kotlin* reference engine the
+  five levels. 13 JUnit tests check it against the *Kotlin* reference engine the
   same way the TS suite does (legal moves and per-tower `hasMove`/`canReachGoal`
   on random, push-heavy and dense positions; every move's resulting state, pass
   chains, deadlock winner, winners and incremental hashes; whole random
@@ -101,7 +101,10 @@ switched back.
   solver; level legality/reproducibility/take-a-win-in-one; a depth-8 side
   beating a depth-2 side). Mutation-checked: inverting the deadlock loser,
   loosening the push capacity, or dropping the `lastMover` restore in `unmake`
-  each make several of them fail. The Kotlin port has no review/analysis and its
+  each make several of them fail. (One test runs 24 decisions on 24 threads and
+  compares them with the sequential answers; it passed with the lock removed
+  too, so it is a smoke test of the serialised table, not proof of it.) The
+  Kotlin port has no review/analysis and its
   strength ladder was not re-measured (it is the same algorithm, not the same
   binary; the TS ladder above is the measured one).
 
@@ -212,13 +215,37 @@ kept rendering at 30+ fps), hint, two undos back to the opening position,
 reload + resume, the blunder guard's cancel / play-anyway, and a finished match
 followed by "rematch, swap sides"; and no horizontal overflow at 390px.
 
+A blind critic reviewed the final round's diff without seeing the author's
+notes. Its own 60,000-position fuzz of the Kotlin `Position` against the Kotlin
+engine found no mismatch, and it found nothing wrong in the review/worker,
+campaign or hook logic. It did find, and these were fixed and re-verified:
+(1) **the Android `:app` sources did not compile** - eight cross-module
+smart-cast errors (`state.requiredColor`, `applied.state`), reproduced in a
+scratch Gradle project that builds `Bot.kt` and `GameViewModel.kt` against
+`:engine` as a separate module, and now compiling clean there (the Compose
+files themselves still cannot be built here); (2) the service worker cached
+*any* navigation response as the offline shell, so a 502 could poison it, and
+`caches.match` could serve an older build's shell - now only good same-origin
+pages are cached, the current cache is consulted first and the newest previous
+generation is kept so an open old tab can still load its worker script (5 unit
+tests run the real script against a stubbed Cache Storage; two fail on the old
+behaviour); (3) the replay dialog opened from the round-over dialog was
+unreachable by keyboard (focus stayed behind it) - a shared `useDialogFocus`
+hook now traps focus, restores it on close, and a keyboard-only Playwright run
+fails without it and passes with it; (4) the Android hub could not scroll in
+landscape with eight buttons; (5) the board swallowed Alt/Ctrl/Cmd+arrow
+browser shortcuts; (6) the announcer read a human move twice once the bot
+started thinking, and never announced stymie passes; (7) the Kotlin
+`chooseMove` could throw instead of falling back, and its shared transposition
+table is now serialised.
+
 The final round (analysis, campaign, keyboard/screen reader, PWA, Kotlin AI) was
 verified the same way, and every earlier browser script was re-run against the
 new UI: all pass. New checks: analysis completes with accuracy, graph and a
 drawn better move; a full campaign win unlocks the next stage, survives a
 reload and leaves no stray Dojo save; a move played with the keyboard only plus
 the exact announcer text; the service worker controls the page and everything
-works offline; and a sweep of seven pages at 320 / 360 / 390 px, which found and
+works offline; a keyboard-only pass through the replay dialog and a check that no announcement repeats the previous move; and a sweep of seven pages at 320 / 360 / 390 px, which found and
 fixed a real 19 px horizontal overflow on the home page at 320 px. Those scripts
 live outside the repo (scratch directory) - only the vitest/JUnit suites above
 are committed.
@@ -263,9 +290,9 @@ Dragon Vault cosmetic system, and the Play Store release (Phases 3-5).
 npm install                                   # from repo root (npm workspaces)
 npm run test:engine                           # 40/40 TS engine tests
 npm test -w @kamisado/ai                       # 21/21 AI tests (vitest)
-npm test -w kamisado-online-webapp-game        # 42/42 web unit tests (vitest)
+npm test -w kamisado-online-webapp-game        # 48/48 web unit tests (vitest)
 npm test -w @kamisado/room-server              # 6/6 room-server tests (vitest)
 npm run dev:web                                # web app on :5173
 npm run dev:room-server                        # room server on :8787
-cd kamisado-android-app && ./gradlew :engine:test   # 42/42 Kotlin tests (engine 30 + AI port 12)
+cd kamisado-android-app && ./gradlew :engine:test   # 43/43 Kotlin tests (engine 30 + AI port 13)
 ```

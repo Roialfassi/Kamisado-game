@@ -170,4 +170,19 @@ class SearchAndLevelsTest {
         }
         assertTrue(deepWins >= 9, "depth-8 search should win most rounds against depth-2 noise (won $deepWins/$games)")
     }
+
+    @Test
+    fun `concurrent decisions on different threads give the same answers as sequential ones`() {
+        val rng = Random(11)
+        val states = (0 until 24).mapNotNull { resolved(randomPosition(rng, sumo = true)) }
+        val cfg = LevelConfig(6, 0, 0.0)
+        val sequential = states.map { chooseMove(it, BotLevel.DRAGON_MASTER, Random(1), deterministicDepth = true, override = cfg) }
+        val results = arrayOfNulls<Move>(states.size)
+        val threads = states.indices.map { i ->
+            Thread { results[i] = chooseMove(states[i], BotLevel.DRAGON_MASTER, Random(1), deterministicDepth = true, override = cfg) }
+        }
+        threads.forEach { it.start() }
+        threads.forEach { it.join() }
+        assertEquals(sequential, results.toList())
+    }
 }

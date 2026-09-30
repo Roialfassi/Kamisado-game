@@ -1,6 +1,5 @@
 import { ReactNode, useEffect, useRef } from 'react';
-
-const FOCUSABLE = 'button:not([disabled]), [href], input:not([disabled]), select, textarea, [tabindex]:not([tabindex="-1"])';
+import { useDialogFocus } from './useDialogFocus.js';
 
 /** Centred glass dialog over a dimmed, scrollable backdrop. Moves focus into
  * the dialog, keeps Tab inside it, closes on Escape / backdrop click and
@@ -8,30 +7,12 @@ const FOCUSABLE = 'button:not([disabled]), [href], input:not([disabled]), select
 export function Modal({ children, label, onClose }: { children: ReactNode; label: string; onClose?: () => void }) {
   const panelRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    const previous = document.activeElement as HTMLElement | null;
-    panelRef.current?.focus();
-    return () => previous?.focus?.();
-  }, []);
+  useDialogFocus(panelRef);
 
   useEffect(() => {
+    if (!onClose) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && onClose) {
-        onClose();
-      } else if (e.key === 'Tab' && panelRef.current) {
-        const items = Array.from(panelRef.current.querySelectorAll<HTMLElement>(FOCUSABLE));
-        if (items.length === 0) return;
-        const first = items[0]!;
-        const last = items[items.length - 1]!;
-        const active = document.activeElement;
-        if (e.shiftKey && (active === first || active === panelRef.current)) {
-          e.preventDefault();
-          last.focus();
-        } else if (!e.shiftKey && active === last) {
-          e.preventDefault();
-          first.focus();
-        }
-      }
+      if (e.key === 'Escape') onClose();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);

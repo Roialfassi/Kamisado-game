@@ -16,7 +16,8 @@ enum class BotTier(val level: BotLevel, val label: String) {
 /** All legal moves the active player can currently choose from: every color
  * if it's a free-choice turn, otherwise just the one required tower. */
 fun enumerateChoices(state: GameState): List<Move> {
-    if (state.requiredColor != null) return getLegalMoves(state, state.requiredColor)
+    val required = state.requiredColor
+    if (required != null) return getLegalMoves(state, required)
     return ALL_COLORS.flatMap { getLegalMoves(state, it) }
 }
 

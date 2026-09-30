@@ -19,10 +19,12 @@ export interface AnnounceNames {
   you?: PlayerSide | null;
 }
 
-/** One screen-reader sentence describing where the game stands after a move. */
+/** One screen-reader sentence describing where the game stands after a move. `thinking` = the side to move is a computer. */
 export function announceState(state: GameState, lastMove: Move | null, names: AnnounceNames, thinking = false): string {
   const parts: string[] = [];
   if (lastMove) parts.push(describeMove(lastMove));
+  // a stymied tower's pass is not in the move history but is the engine's last move
+  if (state.lastMove?.type === MoveType.PASS && state.lastMove !== lastMove) parts.push(describeMove(state.lastMove));
   if (state.status === GameStatus.MATCH_OVER) {
     parts.push(`Match over. ${state.matchWinner === PlayerSide.BLACK ? names.black : names.gold} wins the match.`);
     return parts.join(' ');

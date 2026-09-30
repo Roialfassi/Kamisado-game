@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { Color, GameStatus, MatchFormat, PlayerSide, applyMove, createGame, getLegalMoves } from '@kamisado/engine';
+import { Color, GameStatus, MatchFormat, MoveType, PlayerSide, applyMove, createGame, getLegalMoves } from '@kamisado/engine';
 import { announceState, describeMove } from './announce.js';
 
 describe('screen-reader announcements', () => {
@@ -16,6 +16,14 @@ describe('screen-reader announcements', () => {
     expect(announceState(after, move, names)).toBe("Black's Red tower moved from c1 to c4. Gold to move. Move the Green tower.");
     expect(announceState(after, move, { ...names, you: PlayerSide.GOLD })).toContain('Your turn. Move the Green tower.');
     expect(announceState(after, move, names, true)).toContain('Gold is thinking');
+  });
+
+  it('announces a stymied tower passing (the pass is the engine\'s last move, not in the history)', () => {
+    const pass = { ...move, type: MoveType.PASS, playerSide: PlayerSide.GOLD, towerColor: Color.GREEN };
+    const text = announceState({ ...after, lastMove: pass }, move, names);
+    expect(text).toContain("Black's Red tower moved from c1 to c4. Gold's Green tower was blocked and passed.");
+    // the same pass is not read twice when it is already the move being described
+    expect(announceState({ ...after, lastMove: pass }, pass, names).match(/blocked and passed/g)).toHaveLength(1);
   });
 
   it('announces a free choice and the end of a round / match', () => {

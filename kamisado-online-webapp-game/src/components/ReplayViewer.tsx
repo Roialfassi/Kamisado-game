@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useDialogFocus } from './ui/useDialogFocus.js';
 import { GameState, GameStatus, Move, PlayerSide } from '@kamisado/engine';
 import { PlyReview, requestReview } from '../ai/botClient.js';
 import { copyToClipboard } from '../lib/clipboard.js';
@@ -86,6 +87,8 @@ export function ReplayViewer({ initialState, history, onClose }: ReplayViewerPro
   const [reviews, setReviews] = useState<PlyReview[] | null>(null);
   const [alt, setAlt] = useState<{ ply: number; move: Move } | null>(null);
   const alive = useRef(true);
+  const panelRef = useRef<HTMLDivElement>(null);
+  useDialogFocus(panelRef);
 
   useEffect(() => {
     alive.current = true;
@@ -163,7 +166,7 @@ export function ReplayViewer({ initialState, history, onClose }: ReplayViewerPro
 
   return (
     <div className="fixed inset-0 z-50 flex animate-fade-in items-center justify-center bg-black/75 p-3 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="Replay viewer">
-      <div className="glass-strong flex max-h-full w-full max-w-4xl flex-col gap-4 overflow-y-auto p-5 sm:p-6">
+      <div ref={panelRef} tabIndex={-1} className="glass-strong flex max-h-full w-full max-w-4xl flex-col gap-4 overflow-y-auto p-5 outline-none sm:p-6">
         <div className="flex w-full items-center justify-between">
           <div>
             <p className="eyebrow">Replay</p>

@@ -73,10 +73,13 @@ export function GameScreen({
     campaign.onMatchEnd(game.state.matchWinner === humanSide);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [game.state.status, game.state.matchWinner]);
+  // "is thinking" depends only on whose turn it is, not on the moment the search starts: a text that
+  // flipped when the worker started would make screen readers read the whole move out a second time
+  const botToMove = !bothHuman && game.state.status === GameStatus.IN_PROGRESS && game.state.activePlayer !== humanSide;
   const announcement = useMemo(
-    () => announceState(game.state, lastMove, { black: black.name, gold: gold.name, you: bothHuman ? null : humanSide }, game.botThinking),
+    () => announceState(game.state, lastMove, { black: black.name, gold: gold.name, you: bothHuman ? null : humanSide }, botToMove),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [game.state.status, game.state.activePlayer, game.state.requiredColor, game.state.currentRound, game.history.length, game.botThinking],
+    [game.state.status, game.state.activePlayer, game.state.requiredColor, game.state.currentRound, game.history.length, botToMove],
   );
   const opponentName = labelFor(game.state.activePlayer === PlayerSide.BLACK ? PlayerSide.GOLD : PlayerSide.BLACK).name;
 

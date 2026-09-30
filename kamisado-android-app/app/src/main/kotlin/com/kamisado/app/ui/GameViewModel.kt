@@ -98,9 +98,10 @@ class GameViewModel(
     fun commitMove(move: Move) {
         val before = _state.value.game
         val applied = applyMove(before, move)
-        if (!applied.success || applied.state == null) return
+        val appliedState = applied.state
+        if (!applied.success || appliedState == null) return
 
-        var next = applied.state
+        var next = appliedState
         val entries = mutableListOf(HistoryEntry(move, formatNotation(moveCounter, move, next.requiredColor)))
         moveCounter += 1
 
@@ -108,11 +109,12 @@ class GameViewModel(
 
         if (next.status == GameStatus.IN_PROGRESS) {
             val resolved = handlePassOrDeadlock(next)
-            if (resolved.state != null) {
-                if (resolved.state.lastMove?.type == MoveType.PASS && resolved.state.lastMove !== next.lastMove) {
+            val resolvedState = resolved.state
+            if (resolvedState != null) {
+                if (resolvedState.lastMove?.type == MoveType.PASS && resolvedState.lastMove !== next.lastMove) {
                     feedback = FeedbackEvent.PASS
                 }
-                next = resolved.state
+                next = resolvedState
                 if (resolved.isRoundOver) feedback = FeedbackEvent.ROUND_OVER
             }
         } else {

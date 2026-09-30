@@ -65,6 +65,7 @@ export function Board({
   const fallback: Coordinate = selected ?? getMustMoveTower(state)?.position ?? { row: rows[7]!, col: cols[0]! };
   const cur = cursor ?? fallback;
   const onGridKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    if (e.altKey || e.ctrlKey || e.metaKey) return; // browser shortcuts (Alt+Left = back, Ctrl+Home...) stay theirs
     const target = (e.target as HTMLElement).closest<HTMLElement>('[data-testid=square]');
     if (!target) return;
     let vr = rows.indexOf(Number(target.dataset.row));

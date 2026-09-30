@@ -19,7 +19,11 @@ private const val UPPER = 2
 private const val MAX_PLY = 64
 private const val MAX_MOVES = 160
 
-/** The shared transposition table. Every bot decision clears it first (see [clearTranspositionTable]). */
+/**
+ * The shared transposition table. Every bot decision clears it first (see [clearTranspositionTable]).
+ * It is NOT thread-safe: call the search through `chooseMove` / `analyze`, which serialise access, or
+ * make sure only one thread searches at a time.
+ */
 private object Tt {
     val key = IntArray(TT_SIZE)
     val depth = ByteArray(TT_SIZE) { -1 }

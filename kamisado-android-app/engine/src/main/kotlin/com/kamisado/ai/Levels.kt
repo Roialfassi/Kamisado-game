@@ -5,6 +5,9 @@ import com.kamisado.engine.Move
 import com.kamisado.engine.PlayerSide
 import kotlin.random.Random
 
+/** The transposition table is shared, so whole decisions (clear + search) are serialised. */
+private val searchLock = Any()
+
 /** The five bot levels (same names and strengths as the web app's `@kamisado/ai`). */
 enum class BotLevel(val label: String, val stars: Int, val blurb: String) {
     APPRENTICE("Apprentice", 1, "Moves quickly and often without a plan. Perfect for learning the colour lock."),
@@ -59,9 +62,14 @@ fun chooseMove(
 
     val cfg = override ?: CONFIG.getValue(level)
     // every decision starts from a cold table so results are reproducible and levels stay independent
-    clearTranspositionTable()
     val pos = Position.fromState(state)
-    val encoded: Int = if (cfg.noise > 0.0) {
+    val encoded: Int = synchronized(searchLock) { clearTranspositionTable(); searchEncoded(pos, cfg, rng, deterministicDepth) }
+    // never let a search bug crash the app: fall back to any legal move rather than throwing
+    return pos.toEngineMove(encoded, moves) ?: moves[0]
+}
+
+private fun searchEncoded(pos: Position, cfg: LevelConfig, rng: Random, deterministicDepth: Boolean): Int =
+    if (cfg.noise > 0.0) {
         val scored = scoreRootMoves(pos, cfg.depth)
         var best = scored[0]
         var bestValue = -Double.MAX_VALUE
@@ -77,15 +85,15 @@ fun chooseMove(
     } else {
         findBestMove(pos, cfg.depth, if (deterministicDepth) Long.MAX_VALUE else cfg.timeMs, skipForced = true).move
     }
-    return pos.toEngineMove(encoded, moves) ?: error("search move $encoded is not a legal engine move")
-}
 
 /** Best move for the side to move (for hints). */
 fun analyze(state: GameState, maxDepth: Int = 12, timeMs: Long = 400): Pair<Move?, Int> {
     val moves = legalMovesOf(state)
     if (moves.isEmpty()) return null to 0
-    clearTranspositionTable()
     val pos = Position.fromState(state)
-    val r = findBestMove(pos, maxDepth, timeMs)
+    val r = synchronized(searchLock) {
+        clearTranspositionTable()
+        findBestMove(pos, maxDepth, timeMs)
+    }
     return (pos.toEngineMove(r.move, moves) ?: moves[0]) to r.score
 }
