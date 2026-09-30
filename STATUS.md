@@ -16,9 +16,9 @@ from `docs/TEST_SUITE_AND_EDGE_CASES.md`:
 
 ```
 npm test -w @kamisado/engine                       # 40 tests: the 25 spec cases + clocks + next-round + non-baseline scoring
-cd kamisado-android-app && ./gradlew :engine:test  # 30 tests: the 25 spec cases + next-round + deadlock scoring
-npm test -w @kamisado/ai                           # 16 tests: fast search core vs the reference engine + bot levels
-npm test -w kamisado-online-webapp-game            # 35 tests: puzzle catalogue, must-move, blunder guard, saved games
+cd kamisado-android-app && ./gradlew :engine:test  # 42 tests: the 25 spec cases + next-round + deadlock scoring (30) and the Kotlin AI port vs the Kotlin engine (12)
+npm test -w @kamisado/ai                           # 21 tests: fast search core vs the reference engine + bot levels + game review
+npm test -w kamisado-online-webapp-game            # 42 tests: puzzle catalogue, must-move, blunder guard, saved games, campaign, screen-reader text
 npm test -w @kamisado/room-server                  # 6 tests: resignation + next-round validation
 ```
 
@@ -85,8 +85,25 @@ switched back.
   reproducibility) gives: Student over Apprentice 97%, Ronin over Student 84%,
   Samurai over Ronin 83%, Dragon Master over Samurai 79% (95% lower bounds
   94/80/78/74%).
-- Not done: a Kotlin port of this search for the Android app (which still uses
-  its own simple on-device bot).
+- **Game review** (`review.ts`): every ply of a finished round is re-searched
+  (depth 8, 6 in very wide positions) and classified best / good / inaccuracy /
+  mistake / blunder / missed-win from the drop in win chance
+  (`tanh(score/180)`, +-1 for forced results); each side gets an accuracy score.
+  Tests cover a planted missed win and blunder, whole-game consistency and
+  near-perfect accuracy for search-perfect play.
+- **Kotlin port for Android** (`kamisado-android-app/engine/.../com/kamisado/ai/`:
+  `Position`, `Eval`, `Search`, `Levels`): same encoding, hashing, search and
+  five levels. 12 JUnit tests check it against the *Kotlin* reference engine the
+  same way the TS suite does (legal moves and per-tower `hasMove`/`canReachGoal`
+  on random, push-heavy and dense positions; every move's resulting state, pass
+  chains, deadlock winner, winners and incremental hashes; whole random
+  playouts; a hand-built deadlock; forced-win detection equal to a brute-force
+  solver; level legality/reproducibility/take-a-win-in-one; a depth-8 side
+  beating a depth-2 side). Mutation-checked: inverting the deadlock loser,
+  loosening the push capacity, or dropping the `lastMover` restore in `unmake`
+  each make several of them fail. The Kotlin port has no review/analysis and its
+  strength ladder was not re-measured (it is the same algorithm, not the same
+  binary; the TS ladder above is the measured one).
 
 ## Web app (`kamisado-online-webapp-game/`) - built and verified in a real browser
 
@@ -137,6 +154,24 @@ switched back.
   forced, using the solver in `src/puzzles/solver.ts`) with move validation, a
   "Gold's reply is forced" auto-play for the opponent's turns, and a
   localStorage-backed solve streak.
+- **Post-game analysis**: "Analyze" in the replay viewer runs the review in the
+  worker with a progress bar and shows per-side accuracy, an evaluation graph,
+  a verdict badge on every move, and draws the engine's better move on the
+  board for any non-best move.
+- **Campaign - The Dragon's Ascent** (`/campaign`): ten named opponents that
+  climb Apprentice -> Dragon Master, alternating your colour and match length,
+  each unlocked by beating the last; progress persists in localStorage; assists
+  (undo, hint) and autosave are off; win/lose dialogs offer next opponent /
+  try again. (Ten stages, not the 50+ of the plan.)
+- **Keyboard and screen readers**: the board is one tab stop (roving tabindex;
+  arrows, Home/End, PageUp/PageDown, Enter/Space), squares announce colour,
+  occupant, selected / legal move / legal push / suggested, and a polite live
+  region announces every move, whose turn it is and which tower must move.
+- **Installable and offline** (PWA): manifest + icons, a build-generated service
+  worker (network-first navigations, cache-first hashed assets, the bot worker
+  precached), an Offline chip in the header. Verified against the production
+  build: offline reloads of /play, /campaign, /puzzle and /academy, and a bot
+  reply while offline. Online rooms obviously still need the network.
 - A Replay/Analysis viewer for a just-finished round (local hotseat/AI or a
   room game): step forward/backward through every ply (each snapshot is the
   real post-move `GameState`, not re-simulated), click any notation line to
@@ -175,15 +210,25 @@ request; vs-AI with a Blitz clock; settings persistence; solving today's
 puzzle through the UI; a vs-Dragon-Master game (reply in ~1.5 s while the page
 kept rendering at 30+ fps), hint, two undos back to the opening position,
 reload + resume, the blunder guard's cancel / play-anyway, and a finished match
-followed by "rematch, swap sides"; and no horizontal overflow at 390px. Those scripts live
-outside the repo (scratch directory) - only the vitest/JUnit suites above are
-committed.
+followed by "rematch, swap sides"; and no horizontal overflow at 390px.
 
-**Not built**: ranked ELO matchmaking/ladder, account systems, post-game
-blunder analysis, PWA/offline install, "play from this position against a bot"
-branching in the replay viewer, friends lists, tournaments, spectator theater,
-streamer overlays, and the roughly 27 further puzzle stages a real "50+ stage"
-catalog would need (23 exist; Phases 3-5 of `PLAN.md`).
+The final round (analysis, campaign, keyboard/screen reader, PWA, Kotlin AI) was
+verified the same way, and every earlier browser script was re-run against the
+new UI: all pass. New checks: analysis completes with accuracy, graph and a
+drawn better move; a full campaign win unlocks the next stage, survives a
+reload and leaves no stray Dojo save; a move played with the keyboard only plus
+the exact announcer text; the service worker controls the page and everything
+works offline; and a sweep of seven pages at 320 / 360 / 390 px, which found and
+fixed a real 19 px horizontal overflow on the home page at 320 px. Those scripts
+live outside the repo (scratch directory) - only the vitest/JUnit suites above
+are committed.
+
+**Not built**: ranked ELO matchmaking/ladder, account systems, "play from this
+position against a bot" branching in the replay viewer, friends lists,
+tournaments, spectator theater, streamer overlays, cloud sync of campaign
+progress (it lives in one browser's localStorage), and the roughly 27 further
+puzzle stages a real "50+ stage" catalog would need (23 exist; 10 campaign
+stages; Phases 3-5 of `PLAN.md`).
 
 ## Android app (`kamisado-android-app/`) - two different verification levels
 
@@ -191,10 +236,15 @@ catalog would need (23 exist; Phases 3-5 of `PLAN.md`).
 - `app/`: a Jetpack Compose UI (touch board, tap-to-select move input, haptic
   feedback via a real `Vibrator`/`VibrationEffect` pattern for placement vs.
   Sumo pushes, a Tabletop-mode 180-degree flip toggle, and a lightweight
-  two-tier on-device AI opponent) covering roughly the Phase 1-2 scope of
+  five-level on-device AI opponent) covering roughly the Phase 1-2 scope of
   `PLAN.md` - **written and hand-reviewed, but not compiled**. (Its call sites
-  were switched to the new per-round reset but that edit is likewise
-  uncompiled; its UI still predates the web app's redesign.) Building any
+  were switched to the new per-round reset and to the shared Kotlin AI - the hub
+  now lists all five opponents and searches run on `Dispatchers.Default` - but
+  those edits are likewise uncompiled: only `ai/Bot.kt` was compile-checked, by
+  temporarily building it inside `:engine`; its UI still predates the web app's
+  redesign.) The `:engine` module now emits Java 17 bytecode (it is still
+  compiled by JDK 21) because the app module targets JVM 17 and could not read
+  newer class files; the tests were re-run after that change. Building any
   Android module requires the Android Gradle Plugin and SDK artifacts from
   Google's Maven repository, which was unreachable from this project's build
   sandbox (see `kamisado-android-app/README.md` for exact repro and how to
@@ -203,7 +253,7 @@ catalog would need (23 exist; Phases 3-5 of `PLAN.md`).
   engine's enum and Compose's `Color` class) and fixed, but treat this module
   as unverified until it has actually been compiled once.
 
-**Not built**: The Dragon's Ascent campaign, daily puzzles, Bluetooth/Wi-Fi
+**Not built** on Android: The Dragon's Ascent campaign (web only), daily puzzles, game review, Bluetooth/Wi-Fi
 Direct play, Google Play Games auth and cloud sync, push notifications, the
 Dragon Vault cosmetic system, and the Play Store release (Phases 3-5).
 
@@ -212,10 +262,10 @@ Dragon Vault cosmetic system, and the Play Store release (Phases 3-5).
 ```bash
 npm install                                   # from repo root (npm workspaces)
 npm run test:engine                           # 40/40 TS engine tests
-npm test -w @kamisado/ai                       # 16/16 AI tests (vitest)
-npm test -w kamisado-online-webapp-game        # 35/35 web unit tests (vitest)
+npm test -w @kamisado/ai                       # 21/21 AI tests (vitest)
+npm test -w kamisado-online-webapp-game        # 42/42 web unit tests (vitest)
 npm test -w @kamisado/room-server              # 6/6 room-server tests (vitest)
 npm run dev:web                                # web app on :5173
 npm run dev:room-server                        # room server on :8787
-cd kamisado-android-app && ./gradlew :engine:test   # 30/30 Kotlin engine tests
+cd kamisado-android-app && ./gradlew :engine:test   # 42/42 Kotlin tests (engine 30 + AI port 12)
 ```
