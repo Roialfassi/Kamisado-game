@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { PlayerSide } from '@kamisado/engine';
 import { Board } from '../components/Board.js';
+import { Icon } from '../components/ui/Icon.js';
 import { getStreak, isSolvedToday, recordSolve } from '../lib/puzzleProgress.js';
 import { puzzleForToday } from '../puzzles/data.js';
 import { usePuzzle } from '../puzzles/usePuzzle.js';
@@ -20,17 +21,22 @@ export default function DailyPuzzle() {
     setAlreadySolved(true);
   }, [puzzleGame.status, puzzle.id]);
 
+  const lastMove = puzzleGame.state.lastMove;
+
   return (
-    <div className="mx-auto max-w-3xl px-4 py-10">
-      <div className="mb-6 flex flex-col items-center gap-1 text-center">
-        <h1 className="font-display text-2xl text-amber-200">Daily Puzzle</h1>
-        <p className="text-xs text-white/50">
-          Streak: <span className="font-semibold text-amber-300">{streak}</span> day{streak === 1 ? '' : 's'}
-          {alreadySolved && <span className="ml-2 text-emerald-400">Solved today</span>}
-        </p>
+    <div className="mx-auto max-w-5xl px-4 py-8 sm:py-12">
+      <div className="mb-8 flex flex-col items-center gap-2 text-center">
+        <p className="eyebrow">日課 · Daily puzzle</p>
+        <h1 className="text-3xl font-extrabold tracking-tight text-white">{puzzle.title}</h1>
+        <div className="flex items-center gap-2">
+          <span className="chip border-accent/40 bg-accent/10 text-accent-soft" data-testid="streak">
+            <Icon name="trophy" size={13} /> {streak} day{streak === 1 ? '' : 's'}
+          </span>
+          {alreadySolved && <span className="chip border-emerald-400/30 bg-emerald-500/10 text-emerald-300">Solved today</span>}
+        </div>
       </div>
 
-      <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-start sm:justify-center">
+      <div className="flex flex-col items-center gap-8 lg:flex-row lg:items-start lg:justify-center">
         <Board
           state={puzzleGame.state}
           perspective={PlayerSide.BLACK}
@@ -39,29 +45,33 @@ export default function DailyPuzzle() {
           symbolsEnabled={false}
           interactive={puzzleGame.status === 'PLAYING'}
           onSquareClick={puzzleGame.selectSquare}
+          lastMove={lastMove}
+          size="min(calc(100vw - 5.5rem), 520px)"
         />
 
-        <div className="max-w-sm space-y-3">
-          <h2 className="font-display text-lg text-amber-200">{puzzle.title}</h2>
-          <p className="text-sm text-white/75">{puzzle.description}</p>
-          <p className="text-xs uppercase tracking-wide text-white/50">
-            Mate in {puzzle.mateIn} - {puzzleGame.movesRemaining} move{puzzleGame.movesRemaining === 1 ? '' : 's'} left
-          </p>
+        <div className="glass w-full max-w-md space-y-4 p-6">
+          <p className="text-sm leading-relaxed text-stone-300">{puzzle.description}</p>
+          <div className="flex items-center gap-2">
+            <span className="chip">Mate in {puzzle.mateIn}</span>
+            <span className="chip" data-testid="moves-left">
+              {puzzleGame.movesRemaining} move{puzzleGame.movesRemaining === 1 ? '' : 's'} left
+            </span>
+          </div>
 
           {puzzleGame.status === 'SOLVED' && (
-            <p className="rounded-md bg-emerald-900/40 px-3 py-2 text-sm font-semibold text-emerald-300" data-testid="puzzle-solved">
+            <p className="rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-sm font-semibold text-emerald-300" data-testid="puzzle-solved">
               Solved! Black reaches the home row.
             </p>
           )}
           {puzzleGame.status === 'FAILED' && (
-            <p className="rounded-md bg-red-900/40 px-3 py-2 text-sm font-semibold text-red-300">
-              That line doesn't work out - Gold's reply is forced, so look for a different move.
+            <p className="rounded-xl border border-red-400/30 bg-red-500/10 px-4 py-3 text-sm font-semibold text-red-300">
+              That line doesn&apos;t work out - look for a different move.
             </p>
           )}
 
           {puzzleGame.status !== 'PLAYING' && (
-            <button onClick={puzzleGame.reset} className="rounded bg-amber-600 px-4 py-2 text-sm font-semibold hover:bg-amber-500">
-              Try Again
+            <button onClick={puzzleGame.reset} className="btn btn-primary" data-testid="puzzle-retry">
+              <Icon name="refresh" /> Try again
             </button>
           )}
         </div>

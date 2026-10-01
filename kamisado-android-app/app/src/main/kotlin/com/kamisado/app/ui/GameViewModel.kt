@@ -12,8 +12,16 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
-enum class Controller { HUMAN, APPRENTICE_BOT, RONIN_BOT }
+enum class Controller(val tier: BotTier?) {
+    HUMAN(null),
+    APPRENTICE_BOT(BotTier.APPRENTICE),
+    STUDENT_BOT(BotTier.STUDENT),
+    RONIN_BOT(BotTier.RONIN),
+    SAMURAI_BOT(BotTier.SAMURAI),
+    DRAGON_MASTER_BOT(BotTier.DRAGON_MASTER),
+}
 
 data class HistoryEntry(val move: Move, val notation: String)
 
@@ -90,9 +98,10 @@ class GameViewModel(
     fun commitMove(move: Move) {
         val before = _state.value.game
         val applied = applyMove(before, move)
-        if (!applied.success || applied.state == null) return
+        val appliedState = applied.state
+        if (!applied.success || appliedState == null) return
 
-        var next = applied.state
+        var next = appliedState
         val entries = mutableListOf(HistoryEntry(move, formatNotation(moveCounter, move, next.requiredColor)))
         moveCounter += 1
 
@@ -100,11 +109,12 @@ class GameViewModel(
 
         if (next.status == GameStatus.IN_PROGRESS) {
             val resolved = handlePassOrDeadlock(next)
-            if (resolved.state != null) {
-                if (resolved.state.lastMove?.type == MoveType.PASS && resolved.state.lastMove !== next.lastMove) {
+            val resolvedState = resolved.state
+            if (resolvedState != null) {
+                if (resolvedState.lastMove?.type == MoveType.PASS && resolvedState.lastMove !== next.lastMove) {
                     feedback = FeedbackEvent.PASS
                 }
-                next = resolved.state
+                next = resolvedState
                 if (resolved.isRoundOver) feedback = FeedbackEvent.ROUND_OVER
             }
         } else {
@@ -121,8 +131,10 @@ class GameViewModel(
         maybeTriggerBot()
     }
 
-    fun regroup(fillFromLeft: Boolean) {
-        val next = regroupForNextRound(_state.value.game, fillFromLeft)
+    /** Starts the next round: every tower returns to its own colour square (house rule). */
+    fun startNextRound() {
+        if (_state.value.game.status != GameStatus.ROUND_OVER) return // ignore double taps
+        val next = reseatForNextRound(_state.value.game)
         moveCounter = 1
         _state.value = _state.value.copy(game = next, history = emptyList(), selected = null, legalDestinations = emptyList())
         maybeTriggerBot()
@@ -136,11 +148,12 @@ class GameViewModel(
         val g = _state.value.game
         if (g.status != GameStatus.IN_PROGRESS) return
         val controller = controllerFor(g.activePlayer)
-        if (controller == Controller.HUMAN) return
-        val tier = if (controller == Controller.APPRENTICE_BOT) BotTier.APPRENTICE else BotTier.RONIN
+        val tier = controller.tier ?: return
         scope.launch {
             delay(450)
-            val move = chooseBotMove(_state.value.game, g.activePlayer, tier)
+            // the search can take a second or more at the top level: keep it off the main thread
+            val snapshot = _state.value.game
+            val move = withContext(Dispatchers.Default) { chooseBotMove(snapshot, g.activePlayer, tier) }
             if (move != null) commitMove(move)
         }
     }

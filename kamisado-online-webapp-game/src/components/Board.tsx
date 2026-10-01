@@ -1,5 +1,7 @@
+import { CSSProperties, KeyboardEvent, useRef, useState } from 'react';
 import { Color, Coordinate, GameState, Move, MoveType, PlayerSide, findTowerAt } from '@kamisado/engine';
 import { COLOR_HEX, COLOR_KANJI, isDarkSquare } from '../lib/theme.js';
+import { getMustMoveTower, getPickableTowers } from '../lib/mustMove.js';
 import { TowerPiece } from './TowerPiece.js';
 
 export interface BoardProps {
@@ -10,6 +12,13 @@ export interface BoardProps {
   symbolsEnabled: boolean;
   interactive: boolean;
   onSquareClick: (coord: Coordinate) => void;
+  /** The last physical move, tinted on the board. Defaults to `state.lastMove`
+   * when that is a real move (passes are not shown). */
+  lastMove?: Move | null;
+  /** A suggested move (from the hint button), drawn in teal. */
+  hint?: Move | null;
+  /** Overrides the responsive default board width (any CSS length). */
+  size?: string;
 }
 
 function visualOrder(perspective: PlayerSide): { rows: number[]; cols: number[] } {
@@ -17,6 +26,12 @@ function visualOrder(perspective: PlayerSide): { rows: number[]; cols: number[] 
     return { rows: [7, 6, 5, 4, 3, 2, 1, 0], cols: [0, 1, 2, 3, 4, 5, 6, 7] };
   }
   return { rows: [0, 1, 2, 3, 4, 5, 6, 7], cols: [7, 6, 5, 4, 3, 2, 1, 0] };
+}
+
+const RAIL = '1.1rem';
+
+function isSelectedTower(selected: Coordinate | null, position: Coordinate): boolean {
+  return !!selected && selected.row === position.row && selected.col === position.col;
 }
 
 export function Board({
@@ -27,150 +42,271 @@ export function Board({
   symbolsEnabled,
   interactive,
   onSquareClick,
+  lastMove,
+  hint,
+  size,
 }: BoardProps) {
   const { rows, cols } = visualOrder(perspective);
+
+  // The colour lock's forced tower is always ringed (whoever's turn it is), and
+  // on a free-choice turn every movable tower of a player who can act is ringed.
+  const mustMoveId = getMustMoveTower(state)?.id ?? null;
+  const pickableIds = new Set(interactive ? getPickableTowers(state).map((t) => t.id) : []);
   const destinationSet = new Map(legalDestinations.map((m) => [`${m.to.row},${m.to.col}`, m]));
+
+  const shownLastMove = lastMove !== undefined ? lastMove : state.lastMove;
+  const trail = shownLastMove && shownLastMove.type !== MoveType.PASS ? shownLastMove : null;
+
+  const frameVars = { ...(size ? { '--board-size': size } : {}) } as CSSProperties;
+
+  // Keyboard: a roving tabindex (one tab stop) moved with the arrow keys; Enter/Space click the focused square.
+  const [cursor, setCursor] = useState<Coordinate | null>(null);
+  const buttons = useRef(new Map<string, HTMLButtonElement>());
+  const fallback: Coordinate = selected ?? getMustMoveTower(state)?.position ?? { row: rows[7]!, col: cols[0]! };
+  const cur = cursor ?? fallback;
+  const onGridKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    if (e.altKey || e.ctrlKey || e.metaKey) return; // browser shortcuts (Alt+Left = back, Ctrl+Home...) stay theirs
+    const target = (e.target as HTMLElement).closest<HTMLElement>('[data-testid=square]');
+    if (!target) return;
+    let vr = rows.indexOf(Number(target.dataset.row));
+    let vc = cols.indexOf(Number(target.dataset.col));
+    switch (e.key) {
+      case 'ArrowUp':
+        vr = Math.max(0, vr - 1);
+        break;
+      case 'ArrowDown':
+        vr = Math.min(7, vr + 1);
+        break;
+      case 'ArrowLeft':
+        vc = Math.max(0, vc - 1);
+        break;
+      case 'ArrowRight':
+        vc = Math.min(7, vc + 1);
+        break;
+      case 'Home':
+        vc = 0;
+        break;
+      case 'End':
+        vc = 7;
+        break;
+      case 'PageUp':
+        vr = 0;
+        break;
+      case 'PageDown':
+        vr = 7;
+        break;
+      default:
+        return;
+    }
+    e.preventDefault();
+    const next = { row: rows[vr]!, col: cols[vc]! };
+    setCursor(next);
+    buttons.current.get(`${next.row},${next.col}`)?.focus();
+  };
 
   return (
     <div
-      className="relative select-none p-3 sm:p-4 rounded-2xl shadow-[0_25px_60px_-15px_rgba(0,0,0,0.9),0_0_0_1px_rgba(255,255,255,0.1),inset_0_1px_2px_rgba(255,255,255,0.18)]"
+      className="relative inline-block select-none rounded-[22px] p-2 sm:p-3.5"
       style={{
-        background: 'radial-gradient(ellipse at 50% 30%, #3a2014 0%, #201008 60%, #130804 100%)',
-        border: '3px solid #5a351e',
-        maxWidth: '100vw',
+        ...frameVars,
+        background: 'radial-gradient(ellipse at 50% 20%, #3b2113 0%, #24120a 55%, #150a05 100%)',
+        border: '1px solid rgba(255,255,255,0.10)',
+        boxShadow:
+          '0 30px 70px -24px rgba(0,0,0,0.95), 0 0 0 4px rgba(90,53,30,0.55), inset 0 1px 1px rgba(255,255,255,0.16)',
       }}
     >
-      {/* Top File Coordinate Markers (a-h) */}
-      <div className="grid pl-6 pr-6 pb-1 text-center font-mono text-xs font-semibold tracking-wider text-[#d4af37]/75" style={{ gridTemplateColumns: 'repeat(8, 1fr)' }}>
-        {cols.map((col) => (
-          <span key={`top-${col}`}>{String.fromCharCode(97 + col)}</span>
-        ))}
-      </div>
+      <div
+        className="grid text-center font-mono text-[10px] font-semibold text-[#e8c565]/70 sm:text-xs"
+        style={{
+          gridTemplateColumns: `${RAIL} var(--board-size) ${RAIL}`,
+          gridTemplateRows: `${RAIL} var(--board-size) ${RAIL}`,
+        }}
+      >
+        <span />
+        <div className="grid grid-cols-8 items-center">
+          {cols.map((col) => (
+            <span key={`top-${col}`}>{String.fromCharCode(97 + col)}</span>
+          ))}
+        </div>
+        <span />
 
-      <div className="flex items-center">
-        {/* Left Rank Coordinate Markers (1-8) */}
-        <div className="flex flex-col justify-around pr-2 text-center font-mono text-xs font-semibold text-[#d4af37]/75" style={{ height: 'min(86vw, 540px)', width: '1.25rem' }}>
+        <div className="grid grid-rows-8 items-center">
           {rows.map((row) => (
             <span key={`left-${row}`}>{row + 1}</span>
           ))}
         </div>
 
-        {/* 8x8 Goban Tile Inlay Grid */}
+        {/* 8x8 goban: exact 1/8 cells so the rails and the tower layer line up. */}
         <div
-          className="grid gap-[2px] p-[2px] rounded-lg shadow-[inset_0_3px_8px_rgba(0,0,0,0.85)] bg-[#120803]"
-          style={{
-            gridTemplateColumns: 'repeat(8, minmax(0,1fr))',
-            width: 'min(86vw, 540px)',
-            aspectRatio: '1 / 1',
-          }}
+          className="relative overflow-hidden rounded-md bg-[#120803] shadow-[inset_0_2px_10px_rgba(0,0,0,0.85),0_0_0_1px_rgba(0,0,0,0.6)]"
           role="grid"
-          aria-label="Kamisado board"
+          aria-label="Kamisado board. Use the arrow keys to move between squares and Enter to select."
+          aria-rowcount={8}
+          aria-colcount={8}
+          onKeyDown={onGridKeyDown}
         >
-          {rows.map((row) =>
-            cols.map((col) => {
-              const color: Color = state.boardLayout[row]![col]!;
-              const tower = findTowerAt(state, row, col);
-              const key = `${row},${col}`;
-              const isSelected = selected?.row === row && selected?.col === col;
-              const destMove = destinationSet.get(key);
-              const isDestination = !!destMove;
-              const isPushTarget = destMove?.type === MoveType.SUMO_PUSH;
-              const kanji = COLOR_KANJI[color];
-              const dark = isDarkSquare(color);
+          <div className="grid h-full w-full grid-cols-8 grid-rows-8">
+            {rows.map((row) => (
+              <div key={`row-${row}`} role="row" className="contents">
+                {cols.map((col) => {
+                const color: Color = state.boardLayout[row]![col]!;
+                const tower = findTowerAt(state, row, col);
+                const key = `${row},${col}`;
+                const isSelected = selected?.row === row && selected?.col === col;
+                const destMove = destinationSet.get(key);
+                const isDestination = !!destMove;
+                const isPushTarget = destMove?.type === MoveType.SUMO_PUSH;
+                const isMustMove = !!tower && tower.id === mustMoveId;
+                const isPickable = !!tower && pickableIds.has(tower.id);
+                const isTrailFrom = trail?.from.row === row && trail.from.col === col;
+                const isTrailTo = trail?.to.row === row && trail.to.col === col;
+                const isHintFrom = hint?.from.row === row && hint.from.col === col;
+                const isHintTo = hint?.to.row === row && hint.to.col === col;
+                const dark = isDarkSquare(color);
 
-              return (
-                <button
-                  type="button"
-                  key={key}
-                  role="gridcell"
-                  aria-label={`${color} square, ${tower ? `${tower.side} ${tower.color} tower` : 'empty'}`}
-                  data-testid="square"
-                  data-row={row}
-                  data-col={col}
-                  disabled={!interactive}
-                  onClick={() => onSquareClick({ row, col })}
-                  className={`group relative flex items-center justify-center aspect-square focus:outline-none transition-all duration-150 overflow-hidden ${
-                    interactive ? 'cursor-pointer' : 'cursor-default'
-                  }`}
-                  style={{
-                    backgroundColor: COLOR_HEX[color],
-                    boxShadow: isSelected
-                      ? 'inset 0 0 0 3px #ffd700, 0 0 15px rgba(255,215,0,0.8)'
-                      : 'inset 1px 1px 1px rgba(255,255,255,0.22), inset -1px -1px 2px rgba(0,0,0,0.38)',
-                  }}
-                >
-                  {/* Subtle Japanese Lacquer Tile Surface Sheen */}
-                  <span
-                    className="pointer-events-none absolute inset-0 opacity-40"
-                    style={{
-                      background: 'radial-gradient(circle at 35% 30%, rgba(255,255,255,0.18) 0%, transparent 70%)',
+                return (
+                  <button
+                    type="button"
+                    key={key}
+                    role="gridcell"
+                    ref={(el) => {
+                      if (el) buttons.current.set(key, el);
+                      else buttons.current.delete(key);
                     }}
-                  />
-
-                  {/* Authentic Japanese Kanji Tile Watermark / Inscription */}
-                  <span
-                    className={`pointer-events-none absolute font-serif select-none transition-opacity duration-200 leading-none ${
-                      symbolsEnabled ? 'opacity-70 text-sm sm:text-base font-bold' : 'opacity-20 text-xs sm:text-sm'
+                    aria-selected={isSelected}
+                    aria-label={`${String.fromCharCode(97 + col)}${row + 1}, ${color} square, ${
+                      tower ? `${tower.side} ${tower.color} tower${isMustMove ? ', must move this turn' : ''}` : 'empty'
+                    }${isSelected ? ', selected' : ''}${isDestination ? (isPushTarget ? ', legal push' : ', legal move') : ''}${isHintFrom ? ', suggested move from here' : ''}${isHintTo ? ', suggested destination' : ''}`}
+                    data-testid="square"
+                    data-row={row}
+                    data-col={col}
+                    data-tower-side={tower?.side}
+                    data-tower-color={tower?.color}
+                    data-must-move={isMustMove ? 'true' : undefined}
+                    aria-disabled={!interactive}
+                    tabIndex={cur.row === row && cur.col === col ? 0 : -1}
+                    onFocus={() => setCursor({ row, col })}
+                    onClick={() => {
+                      if (interactive) onSquareClick({ row, col });
+                    }}
+                    className={`group relative flex aspect-square items-center justify-center overflow-hidden focus:outline-none focus-visible:z-30 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white ${
+                      interactive ? 'cursor-pointer' : 'cursor-default'
                     }`}
                     style={{
-                      color: dark ? '#fff3d1' : '#1c0f08',
-                      textShadow: dark ? '0 1px 2px rgba(0,0,0,0.8)' : '0 1px 1px rgba(255,255,255,0.6)',
+                      backgroundColor: COLOR_HEX[color],
+                      boxShadow: isSelected
+                        ? 'inset 0 0 0 2px #16110a, inset 0 0 0 5px #fff3b0, 0 0 15px rgba(255,215,0,0.8)'
+                        : 'inset 1px 1px 1px rgba(255,255,255,0.22), inset -1px -1px 2px rgba(0,0,0,0.38), inset 0 0 0 1px rgba(0,0,0,0.28)',
                     }}
                   >
-                    {!tower && kanji}
-                  </span>
-
-                  {/* Legal Destination Highlight (Glowing Golden Lotus Circle) */}
-                  {isDestination && !isPushTarget && (
-                    <span className="pointer-events-none absolute z-15 flex items-center justify-center w-6 h-6 sm:w-8 sm:h-8 rounded-full border-2 border-amber-200 bg-amber-300/40 backdrop-blur-[0.5px] shadow-[0_0_12px_rgba(252,211,77,0.85)] animate-pulse">
-                      <span className="w-2 h-2 rounded-full bg-amber-100 shadow-sm" />
-                    </span>
-                  )}
-
-                  {/* Sumo Push Target Highlight (Combat Dragon Reticle) */}
-                  {isDestination && isPushTarget && (
-                    <span className="pointer-events-none absolute inset-0 z-15 flex items-center justify-center border-4 border-red-500 bg-red-600/35 shadow-[0_0_20px_rgba(239,68,68,0.9)] animate-pulse">
-                      <span className="text-white text-xs font-bold font-mono tracking-tighter bg-red-700/80 px-1 rounded shadow">
-                        PUSH
-                      </span>
-                    </span>
-                  )}
-
-                  {/* Selected Tower Tile Glowing Ring */}
-                  {isSelected && (
-                    <span className="pointer-events-none absolute inset-0 ring-4 ring-amber-300/90 ring-inset shadow-[0_0_16px_rgba(251,191,36,0.9)] z-20" />
-                  )}
-
-                  {/* 3D Pagoda Dragon Tower Piece */}
-                  {tower && (
-                    <TowerPiece
-                      side={tower.side}
-                      color={tower.color}
-                      sumoRank={tower.sumoRank}
-                      selected={isSelected}
-                      symbolsEnabled={symbolsEnabled}
-                      size={46}
+                    {/* lacquer sheen */}
+                    <span
+                      className="pointer-events-none absolute inset-0 opacity-40"
+                      style={{ background: 'radial-gradient(circle at 35% 30%, rgba(255,255,255,0.18) 0%, transparent 70%)' }}
                     />
-                  )}
-                </button>
+
+                    {/* kanji inscription (hidden under a tower) */}
+                    {!tower && !isDestination && (
+                      <span
+                        className={`pointer-events-none absolute font-brand leading-none ${
+                          symbolsEnabled ? 'text-base font-black opacity-80 sm:text-xl' : 'text-sm font-bold opacity-40 sm:text-lg'
+                        }`}
+                        style={{
+                          color: dark ? '#fff3d1' : '#1c0f08',
+                          textShadow: dark ? '0 1px 2px rgba(0,0,0,0.8)' : '0 1px 1px rgba(255,255,255,0.5)',
+                        }}
+                      >
+                        {COLOR_KANJI[color]}
+                      </span>
+                    )}
+
+                    {/* last-move trail */}
+                    {(isTrailFrom || isTrailTo) && (
+                      <span
+                        data-testid={isTrailTo ? 'last-move-to' : 'last-move-from'}
+                        className={`pointer-events-none absolute inset-0 ${
+                          isTrailTo ? 'bg-amber-200/30 ring-2 ring-inset ring-amber-200/70' : 'bg-amber-200/15 ring-1 ring-inset ring-amber-200/40'
+                        }`}
+                      />
+                    )}
+
+                    {/* legal destination: a dot that stays readable on light and dark tiles */}
+                    {isDestination && !isPushTarget && (
+                      <span
+                        data-testid="legal-destination"
+                        className="pointer-events-none absolute z-10 flex h-[34%] w-[34%] items-center justify-center rounded-full transition-transform duration-150 group-hover:scale-125"
+                        style={{
+                          backgroundColor: dark ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.62)',
+                          boxShadow: dark
+                            ? '0 0 0 4px rgba(255,255,255,0.28), 0 0 12px rgba(255,255,255,0.55)'
+                            : '0 0 0 4px rgba(0,0,0,0.22), 0 0 10px rgba(255,255,255,0.35)',
+                        }}
+                      />
+                    )}
+
+                    {/* sumo push target */}
+                    {isDestination && isPushTarget && (
+                      <span
+                        data-testid="legal-destination"
+                        className="pointer-events-none absolute inset-0 z-[26] flex animate-pulse items-center justify-center bg-red-600/35 ring-4 ring-inset ring-red-500"
+                      >
+                        <span className="rounded bg-red-700/90 px-1 font-mono text-[10px] font-bold tracking-tight text-white shadow">PUSH</span>
+                      </span>
+                    )}
+
+                    {isHintFrom && <span className="hint-from" data-testid="hint-from" />}
+                    {isHintTo && <span className="hint-to" data-testid="hint-to" />}
+                    {isMustMove && <span className="must-move-halo" data-testid="must-move-halo" />}
+                    {isPickable && <span className="pickable-ring" data-testid="pickable-ring" />}
+                  </button>
+                );
+                })}
+              </div>
+            ))}
+          </div>
+
+          {/* Tower layer: each piece keeps its DOM node (keyed by id) and is moved
+              with a transform, so a move renders as a smooth slide. */}
+          <div className="pointer-events-none absolute inset-0" aria-hidden="true">
+            {Object.values(state.towers).map((tower) => {
+              const vRow = rows.indexOf(tower.position.row);
+              const vCol = cols.indexOf(tower.position.col);
+              const lifted = isSelectedTower(selected, tower.position);
+              return (
+                <div
+                  key={tower.id}
+                  className="tower-slot"
+                  data-testid="tower-slot"
+                  data-tower-id={tower.id}
+                  style={{ transform: `translate(${vCol * 100}%, ${vRow * 100}%)`, zIndex: lifted ? 30 : 20 }}
+                >
+                  <TowerPiece
+                    side={tower.side}
+                    color={tower.color}
+                    sumoRank={tower.sumoRank}
+                    selected={lifted}
+                    symbolsEnabled={symbolsEnabled}
+                    size="88%"
+                  />
+                </div>
               );
-            }),
-          )}
+            })}
+          </div>
         </div>
 
-        {/* Right Rank Coordinate Markers (1-8) */}
-        <div className="flex flex-col justify-around pl-2 text-center font-mono text-xs font-semibold text-[#d4af37]/75" style={{ height: 'min(86vw, 540px)', width: '1.25rem' }}>
+        <div className="grid grid-rows-8 items-center">
           {rows.map((row) => (
             <span key={`right-${row}`}>{row + 1}</span>
           ))}
         </div>
-      </div>
 
-      {/* Bottom File Coordinate Markers (a-h) */}
-      <div className="grid pl-6 pr-6 pt-1 text-center font-mono text-xs font-semibold tracking-wider text-[#d4af37]/75" style={{ gridTemplateColumns: 'repeat(8, 1fr)' }}>
-        {cols.map((col) => (
-          <span key={`bottom-${col}`}>{String.fromCharCode(97 + col)}</span>
-        ))}
+        <span />
+        <div className="grid grid-cols-8 items-center">
+          {cols.map((col) => (
+            <span key={`bottom-${col}`}>{String.fromCharCode(97 + col)}</span>
+          ))}
+        </div>
+        <span />
       </div>
     </div>
   );

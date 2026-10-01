@@ -15,6 +15,25 @@ private fun buildInitialTowers(): Map<String, Tower> {
     return towers
 }
 
+/**
+ * Awards a round win that did NOT come from a tower reaching the home row
+ * (deadlock, timeout, resignation): the winner scores the same flat +1 as a
+ * baseline win - so matches always progress and can end this way - but earns
+ * no Sumo promotion. Mirrors the TypeScript engine's `awardRoundWin`.
+ */
+fun awardRoundWin(state: GameState, winner: PlayerSide, reason: RoundOverReason): GameState {
+    val prev = state.scores.getValue(winner)
+    val next = prev.copy(points = prev.points + 1, roundsWon = prev.roundsWon + 1)
+    val matchOver = next.points >= state.matchFormat.pointsToWin
+    return state.copy(
+        scores = state.scores + (winner to next),
+        status = if (matchOver) GameStatus.MATCH_OVER else GameStatus.ROUND_OVER,
+        roundWinner = winner,
+        roundOverReason = reason,
+        matchWinner = if (matchOver) winner else null,
+    )
+}
+
 fun createGame(format: MatchFormat, initialClockMs: Long = 0L): GameState {
     val blackScore = PlayerScore(PlayerSide.BLACK, 0, 0)
     val goldScore = PlayerScore(PlayerSide.GOLD, 0, 0)
@@ -209,8 +228,15 @@ fun handlePassOrDeadlock(state: GameState): MoveResult {
         if (seen.contains(key)) {
             val loser = current.lastPhysicalMover ?: current.activePlayer
             val winner = loser.other()
-            val finalState = current.copy(status = GameStatus.ROUND_OVER, roundWinner = winner, roundOverReason = RoundOverReason.DEADLOCK)
-            return MoveResult(success = true, state = finalState, isRoundOver = true, roundWinner = winner)
+            val finalState = awardRoundWin(current, winner, RoundOverReason.DEADLOCK)
+            return MoveResult(
+                success = true,
+                state = finalState,
+                isRoundOver = true,
+                isMatchOver = finalState.status == GameStatus.MATCH_OVER,
+                roundWinner = winner,
+                matchWinner = finalState.matchWinner,
+            )
         }
         seen.add(key)
 
@@ -252,6 +278,30 @@ fun regroupForNextRound(state: GameState, fillFromLeft: Boolean): GameState {
         }
     }
 
+    return beginNextRound(state, towers)
+}
+
+/**
+ * House rule (owner's choice, replacing the official F1-F4 fill-from-left/
+ * right regroup for this app): every round after the first restarts with each
+ * tower back on the home-row square of its own colour, exactly like round 1.
+ * Sumo ranks earned so far persist; only board position resets. Mirrors the
+ * TypeScript engine's `reseatForNextRound`.
+ */
+fun reseatForNextRound(state: GameState): GameState {
+    // Only between rounds: a double tap must not skip a round.
+    if (state.status != GameStatus.ROUND_OVER) return state
+    val home = buildInitialTowers()
+    val towers = state.towers.mapValues { (id, tower) ->
+        val start = home[id] ?: error("unknown tower $id")
+        tower.copy(position = start.position)
+    }
+    return beginNextRound(state, towers)
+}
+
+/** Shared "start the next round" bookkeeping: fresh board, the round's loser
+ * (the Challenger) opens, and all per-round state is cleared. */
+private fun beginNextRound(state: GameState, towers: Map<String, Tower>): GameState {
     val nextChallenger = state.roundWinner?.other() ?: state.activePlayer
 
     return state.copy(

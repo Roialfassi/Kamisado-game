@@ -8,10 +8,11 @@ import {
   MoveType,
   PlayerSide,
   applyMove,
+  awardRoundWin,
   createGame,
   handlePassOrDeadlock,
   otherSide,
-  regroupForNextRound,
+  reseatForNextRound,
 } from '@kamisado/engine';
 import type { RoundFinishedReason } from '@kamisado/protocol';
 import type { WebSocket } from 'ws';
@@ -101,7 +102,13 @@ export function applyRoomMove(room: Room, move: Move): ApplyMoveOutcome | { erro
     const resolved = handlePassOrDeadlock(finalState);
     if (resolved.state) finalState = resolved.state;
     if (resolved.isRoundOver && resolved.roundWinner) {
-      finished = { winner: resolved.roundWinner, reason: 'DEADLOCK', promotedTower: null, matchOver: false, matchWinner: null };
+      finished = {
+        winner: resolved.roundWinner,
+        reason: 'DEADLOCK',
+        promotedTower: null,
+        matchOver: resolved.isMatchOver ?? false,
+        matchWinner: resolved.matchWinner ?? null,
+      };
     }
   } else {
     const winner = finalState.roundWinner;
@@ -125,21 +132,15 @@ export function applyRoomMove(room: Room, move: Move): ApplyMoveOutcome | { erro
  * rather than in the pure engine. The opponent is awarded the round (and the
  * match, if that reaches the format's point threshold), with no Sumo
  * promotion since no tower physically reached the home row. */
-export function applyResignation(room: Room, resigningSide: PlayerSide): ApplyMoveOutcome {
+export function applyResignation(room: Room, resigningSide: PlayerSide): ApplyMoveOutcome | { error: string } {
+  // Only a round in progress can be resigned: resigning a finished round/match
+  // must not hand out a free point or reopen a decided match.
+  if (room.gameState.status !== GameStatus.IN_PROGRESS) {
+    return { error: 'Only a round in progress can be resigned' };
+  }
   const winner = otherSide(resigningSide);
-  const prevScore = room.gameState.scores[winner];
-  const nextScore = { ...prevScore, points: prevScore.points + 1, roundsWon: prevScore.roundsWon + 1 };
-  const threshold = { SINGLE_ROUND: 1, STANDARD: 3, LONG: 7, MARATHON: 15 }[room.gameState.matchFormat];
-  const matchOver = nextScore.points >= threshold;
-
-  room.gameState = {
-    ...room.gameState,
-    scores: { ...room.gameState.scores, [winner]: nextScore },
-    status: matchOver ? GameStatus.MATCH_OVER : GameStatus.ROUND_OVER,
-    roundWinner: winner,
-    roundOverReason: 'RESIGN',
-    matchWinner: matchOver ? winner : undefined,
-  };
+  room.gameState = awardRoundWin(room.gameState, winner, 'RESIGN');
+  const matchOver = room.gameState.status === GameStatus.MATCH_OVER;
 
   return {
     moveResult: { success: true, state: room.gameState },
@@ -147,6 +148,11 @@ export function applyResignation(room: Room, resigningSide: PlayerSide): ApplyMo
   };
 }
 
-export function applyRoomRegroup(room: Room, fillFromLeft: boolean): void {
-  room.gameState = regroupForNextRound(room.gameState, fillFromLeft);
+/** Starts the next round of a finished (non-final) round: every tower goes
+ * back to the home square of its own colour. Returns false, changing
+ * nothing, if the room is not between rounds. */
+export function applyRoomRegroup(room: Room): boolean {
+  if (room.gameState.status !== GameStatus.ROUND_OVER) return false;
+  room.gameState = reseatForNextRound(room.gameState);
+  return true;
 }

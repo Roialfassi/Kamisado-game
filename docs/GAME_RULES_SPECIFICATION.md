@@ -141,3 +141,5 @@ When a tower reaches the opponent's home row ($r = 7$ for Black, $r = 0$ for Gol
 * The winner of the previous round (the Defender in the new round) chooses whether to **fill from the left** or **fill from the right**.
 * The Challenger must fill in the same direction.
 * Towers are returned to the home row in order based on the row and column they occupied at the end of the round.
+
+> **House rule in this app (owner's decision):** the official F1-F4 fill-from-left/right regroup is *not* used by the shipped UIs. Instead every round after the first restarts with each tower back on the home square of its own colour - the same order every round (`reseatForNextRound` in the TS and Kotlin engines). Sumo ranks persist. `regroupForNextRound` (official rule) is still implemented and tested in the engine.

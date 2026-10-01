@@ -171,13 +171,24 @@ function handleResign(ws: WebSocket, msg: Extract<ClientMessage, { type: 'RESIGN
     return;
   }
   const outcome = applyResignation(room, msg.playerSide);
+  if ('error' in outcome) {
+    send(ws, { type: 'ERROR', message: outcome.error });
+    return;
+  }
   if (outcome.finished) broadcastRoundFinished(room, outcome.finished);
 }
 
 function handleRegroup(ws: WebSocket, msg: Extract<ClientMessage, { type: 'REGROUP' }>): void {
   const room = requireRoom(ws, msg.roomId);
   if (!room) return;
-  applyRoomRegroup(room, msg.fillFromLeft);
+  if (seatOf(room, ws) === 'SPECTATOR') {
+    send(ws, { type: 'ERROR', message: 'Only a seated player can start the next round' });
+    return;
+  }
+  if (!applyRoomRegroup(room)) {
+    send(ws, { type: 'ERROR', message: 'The next round can only be started between rounds' });
+    return;
+  }
   broadcastRoomState(room);
 }
 
@@ -200,7 +211,7 @@ function scheduleGraceForfeit(room: Room, side: PlayerSide): void {
     if (!seat || seat.ws || room.gameState.status !== GameStatus.IN_PROGRESS) return;
 
     const outcome = applyResignation(room, side);
-    if (outcome.finished) broadcastRoundFinished(room, outcome.finished);
+    if ('finished' in outcome && outcome.finished) broadcastRoundFinished(room, outcome.finished);
     broadcastRoomState(room);
     deleteRoomIfEmpty(room.id);
   }, DISCONNECT_GRACE_MS);

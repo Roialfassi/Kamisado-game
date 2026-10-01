@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Icon } from '../components/ui/Icon.js';
 import { LessonBoard } from '../tutorial/LessonBoard.js';
 import {
   colorLockScenario,
@@ -68,40 +69,47 @@ export default function Academy() {
   const { state, legal } = lesson.board();
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-10">
-      <h1 className="mb-2 text-center font-display text-2xl text-amber-200">The Academy</h1>
-      <p className="mb-8 text-center text-sm text-white/50">Five short lessons, each backed by the real rules engine.</p>
+    <div className="mx-auto max-w-5xl px-4 py-8 sm:py-12">
+      <div className="mb-8 text-center">
+        <p className="eyebrow">寺院 · Academy</p>
+        <h1 className="mt-1 text-3xl font-extrabold tracking-tight text-white">Learn Kamisado</h1>
+        <p className="mt-2 text-sm text-stone-400">Five short lessons, each running on the real rules engine.</p>
+      </div>
 
-      <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-start sm:justify-center">
+      <div className="mb-6 flex items-center justify-center gap-2" role="tablist" aria-label="Lessons">
+        {LESSONS.map((l, i) => (
+          <button
+            key={l.title}
+            role="tab"
+            aria-selected={i === index}
+            aria-label={l.title}
+            onClick={() => setIndex(i)}
+            className={`h-2 rounded-full transition-all ${i === index ? 'w-8 bg-accent' : i < index ? 'w-2 bg-accent/50' : 'w-2 bg-white/20 hover:bg-white/40'}`}
+          />
+        ))}
+      </div>
+
+      <div className="flex flex-col items-center gap-8 lg:flex-row lg:items-start lg:justify-center">
         <LessonBoard state={state} legal={legal} />
-        <div className="max-w-sm space-y-3">
-          <h2 className="font-display text-lg text-amber-200">{lesson.title}</h2>
+        <div className="glass w-full max-w-md space-y-3 p-6" data-testid="lesson-card">
+          <p className="eyebrow">
+            Lesson {index + 1} of {LESSONS.length}
+          </p>
+          <h2 className="text-xl font-bold text-white">{lesson.title.replace(/^\d+\.\s*/, '')}</h2>
           {lesson.body.map((p, i) => (
-            <p key={i} className="text-sm text-white/75">
+            <p key={i} className="text-sm leading-relaxed text-stone-300">
               {p}
             </p>
           ))}
+          <div className="flex items-center justify-between pt-3">
+            <button onClick={() => setIndex((i) => Math.max(0, i - 1))} disabled={index === 0} className="btn btn-ghost">
+              <Icon name="arrowLeft" /> Previous
+            </button>
+            <button onClick={() => setIndex((i) => Math.min(LESSONS.length - 1, i + 1))} disabled={index === LESSONS.length - 1} className="btn btn-primary">
+              Next lesson <Icon name="chevronRight" />
+            </button>
+          </div>
         </div>
-      </div>
-
-      <div className="mt-8 flex justify-center gap-3">
-        <button
-          onClick={() => setIndex((i) => Math.max(0, i - 1))}
-          disabled={index === 0}
-          className="rounded bg-black/30 px-4 py-2 text-sm disabled:opacity-30"
-        >
-          Previous
-        </button>
-        <span className="self-center text-xs text-white/50">
-          {index + 1} / {LESSONS.length}
-        </span>
-        <button
-          onClick={() => setIndex((i) => Math.min(LESSONS.length - 1, i + 1))}
-          disabled={index === LESSONS.length - 1}
-          className="rounded bg-amber-600 px-4 py-2 text-sm font-semibold disabled:opacity-30"
-        >
-          Next Lesson
-        </button>
       </div>
     </div>
   );

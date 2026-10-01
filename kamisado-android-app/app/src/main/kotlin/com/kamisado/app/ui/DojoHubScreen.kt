@@ -1,6 +1,8 @@
 package com.kamisado.app.ui
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -13,10 +15,11 @@ import androidx.compose.ui.unit.sp
 fun DojoHubScreen(
     onStartHotseat: () -> Unit,
     onStartTabletop: () -> Unit,
-    onStartSkirmish: () -> Unit,
+    onStartSkirmish: (Controller) -> Unit,
 ) {
     Column(
-        modifier = Modifier.fillMaxSize().padding(24.dp),
+        // scrolls when the eight buttons do not fit (landscape, short phones)
+        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
@@ -27,7 +30,12 @@ fun DojoHubScreen(
         Spacer(Modifier.height(12.dp))
         HubButton("Tabletop Mode (Face-to-Face)", onStartTabletop)
         Spacer(Modifier.height(12.dp))
-        HubButton("AI Skirmish", onStartSkirmish)
+        Text("AI Skirmish", modifier = Modifier.padding(bottom = 8.dp))
+        for (controller in Controller.entries) {
+            val tier = controller.tier ?: continue
+            HubButton("${"★".repeat(tier.ordinal + 1)}  ${tier.label}") { onStartSkirmish(controller) }
+            Spacer(Modifier.height(8.dp))
+        }
 
         Spacer(Modifier.height(32.dp))
         Text(

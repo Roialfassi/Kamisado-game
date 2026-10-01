@@ -170,14 +170,22 @@ class EngineTest {
     @Test
     fun `Test 12 two-tower deadlock causes last mover loss`() {
         var state = fresh()
-        assertEquals(Color.ORANGE, colorAt(BOARD_LAYOUT, 1, 4))
-        assertEquals(Color.BLUE, colorAt(BOARD_LAYOUT, 2, 4))
+        // Gold's Blue tower sits on an Orange square (3,4); Black's Orange tower sits
+        // on a Blue square (2,0) - mirrors the TypeScript fixture on the authentic board.
+        assertEquals(Color.ORANGE, colorAt(BOARD_LAYOUT, 3, 4))
+        assertEquals(Color.BLUE, colorAt(BOARD_LAYOUT, 2, 0))
 
-        state = place(state, PlayerSide.GOLD, Color.BLUE, 1, 4)
-        state = place(state, PlayerSide.BLACK, Color.ORANGE, 2, 4)
-        state = place(state, PlayerSide.GOLD, Color.GREEN, 3, 3)
-        state = place(state, PlayerSide.GOLD, Color.RED, 3, 4)
-        state = place(state, PlayerSide.GOLD, Color.YELLOW, 3, 5)
+        state = place(state, PlayerSide.GOLD, Color.BLUE, 3, 4)
+        state = place(state, PlayerSide.BLACK, Color.ORANGE, 2, 0)
+
+        // Block Gold's Blue tower at (3,4): forward cells are (2,3), (2,4), (2,5)
+        state = place(state, PlayerSide.GOLD, Color.GREEN, 2, 3)
+        state = place(state, PlayerSide.GOLD, Color.RED, 2, 4)
+        state = place(state, PlayerSide.GOLD, Color.YELLOW, 2, 5)
+
+        // Block Black's Orange tower at (2,0): forward cells are (3,0), (3,1)
+        state = place(state, PlayerSide.BLACK, Color.PINK, 3, 0)
+        state = place(state, PlayerSide.BLACK, Color.PURPLE, 3, 1)
 
         state = state.copy(activePlayer = PlayerSide.GOLD, requiredColor = Color.BLUE, lastPhysicalMover = PlayerSide.BLACK)
         val result = handlePassOrDeadlock(state)
@@ -189,17 +197,29 @@ class EngineTest {
     @Test
     fun `Test 13 multi-tower circular deadlock`() {
         var state = fresh()
-        assertEquals(Color.GREEN, colorAt(BOARD_LAYOUT, 1, 0))
-        assertEquals(Color.BLUE, colorAt(BOARD_LAYOUT, 1, 7))
-        assertEquals(Color.GREEN, colorAt(BOARD_LAYOUT, 6, 7))
+        // Chain: (BLACK,BROWN)@(1,0) -> pass -> (GOLD,PURPLE)@(6,4) -> pass ->
+        // (BLACK,BLUE)@(2,3) -> pass -> back to (GOLD,PURPLE): a repeated impasse.
+        assertEquals(Color.PURPLE, colorAt(BOARD_LAYOUT, 1, 0))
+        assertEquals(Color.BLUE, colorAt(BOARD_LAYOUT, 6, 4))
+        assertEquals(Color.PURPLE, colorAt(BOARD_LAYOUT, 2, 3))
 
         state = place(state, PlayerSide.BLACK, Color.BROWN, 1, 0)
-        state = place(state, PlayerSide.GOLD, Color.GREEN, 1, 7)
-        state = place(state, PlayerSide.BLACK, Color.BLUE, 6, 7)
+        state = place(state, PlayerSide.GOLD, Color.PURPLE, 6, 4)
+        state = place(state, PlayerSide.BLACK, Color.BLUE, 2, 3)
+
+        // Block BLACK_BROWN@(1,0): forward cells (2,0),(2,1).
         state = place(state, PlayerSide.GOLD, Color.ORANGE, 2, 0)
-        state = place(state, PlayerSide.GOLD, Color.PURPLE, 2, 1)
-        state = place(state, PlayerSide.BLACK, Color.PINK, 0, 6)
-        state = place(state, PlayerSide.BLACK, Color.YELLOW, 7, 6)
+        state = place(state, PlayerSide.GOLD, Color.YELLOW, 2, 1)
+
+        // Block GOLD_PURPLE@(6,4): forward cells (5,3),(5,4),(5,5).
+        state = place(state, PlayerSide.BLACK, Color.GREEN, 5, 3)
+        state = place(state, PlayerSide.BLACK, Color.RED, 5, 4)
+        state = place(state, PlayerSide.BLACK, Color.PINK, 5, 5)
+
+        // Block BLACK_BLUE@(2,3): forward cells (3,2),(3,3),(3,4).
+        state = place(state, PlayerSide.GOLD, Color.PINK, 3, 2)
+        state = place(state, PlayerSide.GOLD, Color.BROWN, 3, 3)
+        state = place(state, PlayerSide.GOLD, Color.RED, 3, 4)
 
         state = state.copy(activePlayer = PlayerSide.BLACK, requiredColor = Color.BROWN, lastPhysicalMover = PlayerSide.GOLD)
         val result = handlePassOrDeadlock(state)
@@ -363,5 +383,86 @@ class EngineTest {
         val passAttempt = applyMove(state, passMove(PlayerSide.BLACK, Color.BROWN, 3 to 3))
         assertEquals(false, passAttempt.success)
         assertEquals(EngineErrorCode.MANDATORY_PUSH, passAttempt.errorCode)
+    }
+
+    // ---- Between rounds: reseatForNextRound (house rule) ----
+
+    private fun finishedRound(): GameState {
+        var state = fresh(MatchFormat.STANDARD)
+        state = place(state, PlayerSide.BLACK, Color.RED, 7, 2, SumoRank.SINGLE)
+        state = place(state, PlayerSide.BLACK, Color.PINK, 3, 4)
+        state = place(state, PlayerSide.GOLD, Color.BLUE, 4, 6)
+        state = place(state, PlayerSide.GOLD, Color.GREEN, 1, 0, SumoRank.DOUBLE)
+        return state.copy(
+            status = GameStatus.ROUND_OVER,
+            roundWinner = PlayerSide.BLACK,
+            roundOverReason = RoundOverReason.BASELINE_REACHED,
+            requiredColor = Color.BLUE,
+            lastPhysicalMover = PlayerSide.BLACK,
+        )
+    }
+
+    @Test
+    fun `reseat puts every tower back on the home square of its own colour`() {
+        val next = reseatForNextRound(finishedRound())
+        val opening = fresh()
+        for ((id, t) in opening.towers) assertEquals(t.position, next.towers.getValue(id).position)
+        for (t in next.towers.values) assertEquals(t.color, colorAt(BOARD_LAYOUT, t.position.row, t.position.col))
+    }
+
+    @Test
+    fun `reseat keeps sumo ranks and scores, advances the round, and the loser opens`() {
+        val before = finishedRound()
+        val next = reseatForNextRound(before)
+        assertEquals(SumoRank.SINGLE, tower(next, PlayerSide.BLACK, Color.RED).sumoRank)
+        assertEquals(SumoRank.DOUBLE, tower(next, PlayerSide.GOLD, Color.GREEN).sumoRank)
+        assertEquals(before.scores, next.scores)
+        assertEquals(before.currentRound + 1, next.currentRound)
+        assertEquals(GameStatus.IN_PROGRESS, next.status)
+        assertEquals(PlayerSide.GOLD, next.activePlayer)
+        assertNull(next.requiredColor)
+        assertNull(next.roundWinner)
+    }
+
+    // ---- Deadlock wins score (mirrors the TypeScript suite) ----
+
+    private fun deadlockState(format: MatchFormat): GameState {
+        var state = fresh(format)
+        state = place(state, PlayerSide.GOLD, Color.BLUE, 3, 4)
+        state = place(state, PlayerSide.BLACK, Color.ORANGE, 2, 0)
+        state = place(state, PlayerSide.GOLD, Color.GREEN, 2, 3)
+        state = place(state, PlayerSide.GOLD, Color.RED, 2, 4)
+        state = place(state, PlayerSide.GOLD, Color.YELLOW, 2, 5)
+        state = place(state, PlayerSide.BLACK, Color.PINK, 3, 0)
+        state = place(state, PlayerSide.BLACK, Color.PURPLE, 3, 1)
+        return state.copy(activePlayer = PlayerSide.GOLD, requiredColor = Color.BLUE, lastPhysicalMover = PlayerSide.BLACK)
+    }
+
+    @Test
+    fun `a deadlock win awards the winner one point and ends the round`() {
+        val result = handlePassOrDeadlock(deadlockState(MatchFormat.STANDARD))
+        assertTrue(result.isRoundOver)
+        assertEquals(false, result.isMatchOver)
+        assertEquals(GameStatus.ROUND_OVER, result.state!!.status)
+        assertEquals(1, result.state.scores.getValue(PlayerSide.GOLD).points)
+        assertEquals(0, result.state.scores.getValue(PlayerSide.BLACK).points)
+        assertEquals(SumoRank.NORMAL, tower(result.state, PlayerSide.GOLD, Color.BLUE).sumoRank)
+    }
+
+    @Test
+    fun `a deadlock win can decide the match`() {
+        val result = handlePassOrDeadlock(deadlockState(MatchFormat.SINGLE_ROUND))
+        assertTrue(result.isMatchOver)
+        assertEquals(PlayerSide.GOLD, result.matchWinner)
+        assertEquals(GameStatus.MATCH_OVER, result.state!!.status)
+    }
+
+    @Test
+    fun `reseat is a no-op unless the round is over`() {
+        val playing = fresh(MatchFormat.STANDARD)
+        assertEquals(playing, reseatForNextRound(playing))
+        val once = reseatForNextRound(finishedRound())
+        assertEquals(GameStatus.IN_PROGRESS, once.status)
+        assertEquals(once, reseatForNextRound(once)) // a double tap must not skip another round
     }
 }

@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Coordinate, GameState, Move, PlayerSide, findTowerAt, getLegalMoves } from '@kamisado/engine';
-import type { ClientMessage, EmoteBroadcastMessage, EmoteId, PreferredSide, RoomStateMessage, RoundFinishedMessage, ServerMessage } from '@kamisado/protocol';
+import type { ClientMessage, EmoteBroadcastMessage, EmoteId, PreferredSide, RoomStateMessage, ServerMessage } from '@kamisado/protocol';
 import { formatMove } from '../lib/notation.js';
+import { resolveSelection } from '../lib/mustMove.js';
 import type { HistoryEntry } from '../state/useKamisadoGame.js';
 
 function wsUrl(): string {
@@ -26,9 +27,8 @@ export type ConnectionStatus = 'CONNECTING' | 'OPEN' | 'CLOSED';
 export function useRoomConnection(roomId: string, playerName: string, preferredSide: PreferredSide) {
   const [status, setStatus] = useState<ConnectionStatus>('CONNECTING');
   const [roomState, setRoomState] = useState<RoomStateMessage | null>(null);
-  const [lastFinished, setLastFinished] = useState<RoundFinishedMessage | null>(null);
   const [lastError, setLastError] = useState<string | null>(null);
-  const [selected, setSelected] = useState<Coordinate | null>(null);
+  const [explicitSelected, setSelected] = useState<Coordinate | null>(null);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [roundStartState, setRoundStartState] = useState<GameState | null>(null);
   const [lastEmote, setLastEmote] = useState<(EmoteBroadcastMessage & { key: number }) | null>(null);
@@ -56,8 +56,10 @@ export function useRoomConnection(roomId: string, playerName: string, preferredS
           lastSeenRound.current = msg.gameState.currentRound;
           moveCounter.current = 1;
           setHistory([]);
+          setSelected(null);
           setRoundStartState(msg.gameState);
         }
+        setLastError(null);
         setRoomState(msg);
       } else if (msg.type === 'MOVE_BROADCAST') {
         // Compute the notation and advance the counter here, in the plain
@@ -73,13 +75,17 @@ export function useRoomConnection(roomId: string, playerName: string, preferredS
         setRoomState((prev) => (prev ? { ...prev, gameState: msg.gameState } : prev));
         setHistory((h) => [...h, entry]);
         setSelected(null);
+        setLastError(null);
       } else if (msg.type === 'ROUND_FINISHED') {
-        setLastFinished(msg);
+        setSelected(null);
+        setLastError(null);
         setRoomState((prev) => (prev ? { ...prev, gameState: msg.gameState } : prev));
       } else if (msg.type === 'EMOTE_BROADCAST') {
         setLastEmote({ ...msg, key: Date.now() });
       } else if (msg.type === 'ERROR') {
         setLastError(msg.message);
+        // Transient (e.g. a duplicate "start next round"): don't leave it on screen.
+        window.setTimeout(() => setLastError((current) => (current === msg.message ? null : current)), 5000);
       }
     };
 
@@ -93,8 +99,11 @@ export function useRoomConnection(roomId: string, playerName: string, preferredS
 
   const submitMove = useCallback((move: Move) => send({ type: 'SUBMIT_MOVE', roomId, move }), [send, roomId]);
   const resign = useCallback((playerSide: PlayerSide) => send({ type: 'RESIGN', roomId, playerSide }), [send, roomId]);
-  const regroup = useCallback((fillFromLeft: boolean) => send({ type: 'REGROUP', roomId, fillFromLeft }), [send, roomId]);
+  const startNextRound = useCallback(() => send({ type: 'REGROUP', roomId }), [send, roomId]);
   const sendEmote = useCallback((emoteId: EmoteId) => send({ type: 'SEND_EMOTE', roomId, emoteId }), [send, roomId]);
+
+  const canAct = !!roomState && roomState.yourSide !== 'SPECTATOR' && roomState.gameState.activePlayer === roomState.yourSide;
+  const selected = roomState ? resolveSelection(roomState.gameState, explicitSelected, canAct) : null;
 
   const legalDestinations: Move[] = (() => {
     if (!roomState || !selected) return [];
@@ -137,7 +146,6 @@ export function useRoomConnection(roomId: string, playerName: string, preferredS
   return {
     status,
     roomState,
-    lastFinished,
     lastError,
     lastEmote,
     selected,
@@ -147,7 +155,7 @@ export function useRoomConnection(roomId: string, playerName: string, preferredS
     selectSquare,
     submitMove,
     resign,
-    regroup,
+    startNextRound,
     sendEmote,
     playerId,
   };

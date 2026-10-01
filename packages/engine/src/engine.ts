@@ -104,6 +104,32 @@ function classifyStandardFailure(state: GameState, tower: Tower, to: Coordinate)
  * the round. `movedTower` must already carry its post-move position; only
  * its sumoRank is updated here (position is left untouched).
  */
+/**
+ * Awards a round win that did NOT come from a tower reaching the home row
+ * (deadlock, timeout, resignation): the winner scores the same flat +1 as a
+ * baseline win - so matches always progress and can end this way - but no
+ * Sumo promotion is earned since no tower physically arrived. Returns the
+ * fields to merge into the state (scores, status, winner, reason, and
+ * `matchWinner` when the format's point threshold is reached).
+ */
+export function awardRoundWin(
+  state: GameState,
+  winner: PlayerSide,
+  reason: NonNullable<GameState['roundOverReason']>,
+): GameState {
+  const prev = state.scores[winner];
+  const next: PlayerScore = { ...prev, points: prev.points + 1, roundsWon: prev.roundsWon + 1 };
+  const matchOver = next.points >= MATCH_FORMAT_POINTS[state.matchFormat];
+  return {
+    ...state,
+    scores: { ...state.scores, [winner]: next },
+    status: matchOver ? GameStatus.MATCH_OVER : GameStatus.ROUND_OVER,
+    roundWinner: winner,
+    roundOverReason: reason,
+    matchWinner: matchOver ? winner : undefined,
+  };
+}
+
 function promoteAndScore(state: GameState, movedTower: Tower, towers: Record<string, Tower>): Partial<GameState> {
   if (movedTower.sumoRank === SumoRank.TRIPLE) {
     // Rule 5.2 "Quadruple Sumo": a fourth home-row run by an already-Triple
@@ -291,13 +317,15 @@ export function handlePassOrDeadlock(state: GameState): MoveResult {
     if (seen.has(key)) {
       const loser = current.lastPhysicalMover ?? current.activePlayer;
       const winner = otherSide(loser);
-      const finalState: GameState = {
-        ...current,
-        status: GameStatus.ROUND_OVER,
+      const finalState = awardRoundWin(current, winner, 'DEADLOCK');
+      return {
+        success: true,
+        state: finalState,
+        isRoundOver: true,
+        isMatchOver: finalState.status === GameStatus.MATCH_OVER,
         roundWinner: winner,
-        roundOverReason: 'DEADLOCK',
+        matchWinner: finalState.matchWinner,
       };
-      return { success: true, state: finalState, isRoundOver: true, roundWinner: winner };
     }
     seen.add(key);
 
@@ -353,6 +381,37 @@ export function regroupForNextRound(state: GameState, fillFromLeft: boolean): Ga
     });
   }
 
+  return beginNextRound(state, towers);
+}
+
+/**
+ * House rule (owner's choice, replacing the official F1-F4 fill-from-left/
+ * right regroup for this app): every round after the first restarts with
+ * each tower back on the home-row square of its own colour, exactly like
+ * round 1 - the same order every time. Sumo ranks earned so far persist;
+ * only board position resets. `regroupForNextRound` remains available for
+ * the official rule. A no-op unless the round is over. Pass `clockMs` in timed
+ * games to give both players a fresh clock for the new round.
+ */
+export function reseatForNextRound(state: GameState, clockMs?: number): GameState {
+  // Only between rounds: a double-click / duplicate message must not skip a round.
+  if (state.status !== GameStatus.ROUND_OVER) return state;
+  const home = buildInitialTowers();
+  const towers: Record<string, Tower> = {};
+  for (const [id, tower] of Object.entries(state.towers)) {
+    const start = home[id];
+    if (!start) throw new Error(`unknown tower ${id}`);
+    towers[id] = { ...tower, position: { ...start.position } };
+  }
+  const next = beginNextRound(state, towers);
+  // Timed games: each round gets a fresh clock (a flagged player must not open
+  // the next round with 0:00 and lose it instantly).
+  return clockMs === undefined ? next : { ...next, clocks: { [PlayerSide.BLACK]: clockMs, [PlayerSide.GOLD]: clockMs } };
+}
+
+/** Shared "start the next round" bookkeeping: fresh board, the round's loser
+ * (the Challenger) opens, and all per-round state is cleared. */
+function beginNextRound(state: GameState, towers: Record<string, Tower>): GameState {
   const nextChallenger =
     state.roundWinner !== undefined ? otherSide(state.roundWinner) : state.activePlayer;
 
@@ -411,13 +470,15 @@ export function checkTimeout(state: GameState, now: number): MoveResult | null {
   if (ticked.clocks[ticked.activePlayer] > 0) return null;
 
   const winner = otherSide(ticked.activePlayer);
-  const finalState: GameState = {
-    ...ticked,
-    status: GameStatus.ROUND_OVER,
+  const finalState = awardRoundWin(ticked, winner, 'TIMEOUT');
+  return {
+    success: true,
+    state: finalState,
+    isRoundOver: true,
+    isMatchOver: finalState.status === GameStatus.MATCH_OVER,
     roundWinner: winner,
-    roundOverReason: 'TIMEOUT',
+    matchWinner: finalState.matchWinner,
   };
-  return { success: true, state: finalState, isRoundOver: true, roundWinner: winner };
 }
 
 export const engine: IKamisadoEngine = {

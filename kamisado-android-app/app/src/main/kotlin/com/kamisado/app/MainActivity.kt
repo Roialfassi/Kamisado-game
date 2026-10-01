@@ -43,7 +43,7 @@ private fun KamisadoApp() {
         is Screen.Hub -> DojoHubScreen(
             onStartHotseat = { screen = Screen.Battlefield(Controller.HUMAN, Controller.HUMAN) },
             onStartTabletop = { screen = Screen.Battlefield(Controller.HUMAN, Controller.HUMAN) },
-            onStartSkirmish = { screen = Screen.Battlefield(Controller.HUMAN, Controller.RONIN_BOT) },
+            onStartSkirmish = { bot -> screen = Screen.Battlefield(Controller.HUMAN, bot) },
         )
         is Screen.Battlefield -> BattlefieldScreen(
             format = MatchFormat.STANDARD,

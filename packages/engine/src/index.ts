@@ -18,6 +18,8 @@ export {
   applyMove,
   handlePassOrDeadlock,
   regroupForNextRound,
+  reseatForNextRound,
+  awardRoundWin,
   tickClock,
   applyClockIncrement,
   checkTimeout,

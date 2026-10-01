@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1b2030"/><stop offset="1" stop-color="#090b10"/></linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fae6a2"/><stop offset="0.5" stop-color="#d4af37"/><stop offset="1" stop-color="#9a741e"/></linearGradient>
+    <radialGradient id="gem" cx="38%" cy="34%" r="70%"><stop offset="0" stop-color="#ffffff" stop-opacity="0.75"/><stop offset="0.3" stop-color="#d23339"/><stop offset="1" stop-color="#5a0e12"/></radialGradient>
+  </defs>
+  <rect width="512" height="512" fill="url(#bg)"/><g transform="translate(64 64) scale(0.75)">
+  <polygon points="188,84 324,84 428,188 428,324 324,428 188,428 84,324 84,188" fill="#f7f3ea" stroke="url(#gold)" stroke-width="14" stroke-linejoin="round"/>
+  <polygon points="200,132 312,132 380,200 380,312 312,380 200,380 132,312 132,200" fill="#ece2d2" stroke="rgba(160,130,90,0.6)" stroke-width="8" stroke-linejoin="round"/>
+  <circle cx="256" cy="256" r="104" fill="#f9f6ef" stroke="url(#gold)" stroke-width="10"/>
+  <circle cx="256" cy="256" r="92" fill="url(#gem)"/>
+  <text x="256" y="292" text-anchor="middle" font-size="96" font-weight="900" font-family="'Noto Serif JP','Hiragino Mincho ProN','Yu Mincho',serif" fill="#fff8e7">紅</text>
+</g></svg>
