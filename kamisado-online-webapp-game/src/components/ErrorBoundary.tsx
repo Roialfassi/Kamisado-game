@@ -28,7 +28,7 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, { failed: 
               className="btn btn-ghost"
               onClick={() => {
                 clearSavedGame();
-                window.location.assign('/');
+                window.location.assign(import.meta.env.BASE_URL || '/');
               }}
             >
               Reset saved game

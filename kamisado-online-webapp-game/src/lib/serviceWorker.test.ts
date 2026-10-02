@@ -9,7 +9,7 @@ const keyOf = (r: unknown) => new URL(typeof r === 'string' ? r : (r as { url: s
 
 type Handler = (event: any) => void;
 
-function bootSw(version: string, files: string[], stores: Map<string, Map<string, Response>>, network: (url: string) => Promise<Response>) {
+function bootSw(version: string, files: string[], stores: Map<string, Map<string, Response>>, network: (url: string) => Promise<Response>, base = '/') {
   const handlers: Record<string, Handler> = {};
   const puts: string[] = [];
   const cacheOf = (name: string) => {
@@ -45,7 +45,7 @@ function bootSw(version: string, files: string[], stores: Map<string, Map<string
     clients: { claim: async () => undefined },
   };
   const fetchFn = (req: { url: string }) => network(req.url);
-  const source = SOURCE.replace('__VERSION__', version).replace('__FILES__', JSON.stringify(files));
+  const source = SOURCE.replace('__VERSION__', version).replace('__FILES__', JSON.stringify(files)).replace(/__BASE__/g, base);
   new Function('self', 'caches', 'fetch', 'URL', source)(self, caches, fetchFn, URL);
 
   const run = async (type: string, event: any) => {
@@ -156,5 +156,29 @@ describe('service worker', () => {
     sw.handlers.fetch!(post);
     const cross: any = { request: { method: 'GET', url: 'https://fonts.example/x.css', mode: 'no-cors' }, respondWith: () => { throw new Error('should not respond'); }, waitUntil: () => undefined };
     sw.handlers.fetch!(cross);
+  });
+
+  it('supports running under a subpath like GitHub Pages', async () => {
+    const subpath = '/Kamisado-game/';
+    const stores = new Map<string, Map<string, Response>>();
+    let online = true;
+    const sw = bootSw('sub', [`${subpath}index.html`], stores, async () => {
+      if (!online) throw new TypeError('offline');
+      return page('SUBPATH SHELL');
+    }, subpath);
+    await sw.install();
+
+    // Online navigation caches under subpath/index.html
+    const ev = sw.fetchEvent('/Kamisado-game/play', 'navigate');
+    sw.handlers.fetch!(ev);
+    expect(await (await ev.response).text()).toBe('SUBPATH SHELL');
+    await Promise.all(ev.waits);
+    expect(sw.puts).toContain(`kamisado-sub:${subpath}index.html`);
+
+    // Offline navigation returns subpath shell
+    online = false;
+    const offlineEv = sw.fetchEvent('/Kamisado-game/campaign', 'navigate');
+    sw.handlers.fetch!(offlineEv);
+    expect(await (await offlineEv.response).text()).toBe('SUBPATH SHELL');
   });
 });

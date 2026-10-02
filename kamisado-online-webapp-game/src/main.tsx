@@ -10,7 +10,7 @@ if (!rootEl) throw new Error('#root element not found');
 
 ReactDOM.createRoot(rootEl).render(
   <React.StrictMode>
-    <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+    <BrowserRouter basename={import.meta.env.BASE_URL} future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <ErrorBoundary>
         <App />
       </ErrorBoundary>
@@ -21,7 +21,7 @@ ReactDOM.createRoot(rootEl).render(
 // Offline support: register the service worker in production builds only (dev servers must never be cached).
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch(() => {
+    navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`).catch(() => {
       // unsupported context (private mode, http): the app simply stays online-only
     });
   });

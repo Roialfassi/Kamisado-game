@@ -6,7 +6,10 @@
     "kamisado-online-webapp-game"
   ],
   "scripts": {
+    "test": "npm run test:engine && npm run test:ai && npm run test:web",
     "test:engine": "npm test -w @kamisado/engine",
+    "test:ai": "npm test -w @kamisado/ai",
+    "test:web": "npm test -w kamisado-online-webapp-game",
     "dev:web": "npm run dev -w kamisado-online-webapp-game",
     "build:web": "npm run build -w kamisado-online-webapp-game",
     "dev:room-server": "npm run dev -w @kamisado/room-server"

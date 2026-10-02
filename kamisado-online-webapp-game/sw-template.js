@@ -4,6 +4,7 @@
 const VERSION = '__VERSION__';
 const CACHE = `kamisado-${VERSION}`;
 const FILES = __FILES__;
+const BASE = '__BASE__';
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(FILES)).then(() => self.skipWaiting()));
@@ -38,11 +39,11 @@ self.addEventListener('fetch', (event) => {
         .then((res) => {
           if (res.ok && res.type === 'basic') {
             const copy = res.clone();
-            event.waitUntil(caches.open(CACHE).then((cache) => cache.put('/index.html', copy)));
+            event.waitUntil(caches.open(CACHE).then((cache) => cache.put(`${BASE}index.html`, copy)));
           }
           return res;
         })
-        .catch(() => caches.open(CACHE).then((cache) => cache.match('/index.html').then((hit) => hit || cache.match('/')))),
+        .catch(() => caches.open(CACHE).then((cache) => cache.match(`${BASE}index.html`).then((hit) => hit || cache.match(BASE)))),
     );
     return;
   }
